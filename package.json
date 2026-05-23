@@ -1,7 +1,7 @@
 {
   "name": "@cluesurf/rock",
   "description": "A Hackable Terminal ⊡",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "main": "./host/index.js",
@@ -53,7 +53,10 @@
     },
     "./tailwind/preset.css": "./tailwind/preset.css"
   },
-  "files": ["host", "tailwind"],
+  "files": [
+    "host",
+    "tailwind"
+  ],
   "scripts": {
     "make": "rm -rf host && tsc && tsc-alias --resolve-full-paths",
     "scan": "concurrently --kill-others \"tsc -w\" \"tsc-alias --resolve-full-paths -w\"",
@@ -84,16 +87,36 @@
     "zustand": "^5.0.0"
   },
   "peerDependenciesMeta": {
-    "@xterm/addon-fit": { "optional": true },
-    "@xterm/addon-search": { "optional": true },
-    "@xterm/addon-web-links": { "optional": true },
-    "@xterm/xterm": { "optional": true },
-    "better-sqlite3": { "optional": true },
-    "electron": { "optional": true },
-    "node-pty": { "optional": true },
-    "react": { "optional": true },
-    "react-dom": { "optional": true },
-    "zustand": { "optional": true }
+    "@xterm/addon-fit": {
+      "optional": true
+    },
+    "@xterm/addon-search": {
+      "optional": true
+    },
+    "@xterm/addon-web-links": {
+      "optional": true
+    },
+    "@xterm/xterm": {
+      "optional": true
+    },
+    "better-sqlite3": {
+      "optional": true
+    },
+    "electron": {
+      "optional": true
+    },
+    "node-pty": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "zustand": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
@@ -106,6 +129,10 @@
     "vitest": "^2.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3", "esbuild", "node-pty"]
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "node-pty"
+    ]
   }
 }
