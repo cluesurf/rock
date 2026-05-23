@@ -39,6 +39,7 @@ import {
   useSensors,
   closestCenter,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { useSortable, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
@@ -47,6 +48,7 @@ import {
   appendNode,
   findNode,
   findParent,
+  flattenLeaves,
   makeGroup,
   makeLeaf,
   moveNode,
@@ -60,6 +62,7 @@ import {
   type TreeNode,
 } from '@/base/tree'
 import { useTerminalStore } from './use-terminal-store'
+import { useSlabActivity, useCommandDuration } from './use-slab-activity'
 
 export type TreeViewProps = {
   tree: TreeNode[]
@@ -69,6 +72,10 @@ export type TreeViewProps = {
   /** Called when the user wants a new tab; pass back the new
    *  slab's name. If omitted, Cmd+T does nothing. */
   onRequestNewSlab?: () => Promise<{ name: string } | null>
+  /** Called for EACH leaf that gets removed (single leaf
+   *  delete, or every leaf inside a deleted group). Use this
+   *  to kill the underlying slab process. */
+  onDeleteLeaf?: (leaf: LeafNode) => void
   className?: string
 }
 
@@ -78,17 +85,51 @@ type DropOverState = {
   position: DropPosition
 } | null
 
+/** Sentinel id for the empty space below the last row.
+ *  Dropping on this appends the dragged node to root. */
+const END_DROP_ID = '__rock_tree_end__'
+
+/** Walk the tree, collecting every group's label into `out`.
+ *  Used to pick an unused default name for new groups. */
+function collectGroupLabels(tree: TreeNode[], out: Set<string>): void {
+  for (const node of tree) {
+    if (node.kind === 'group') {
+      out.add(node.label)
+      collectGroupLabels(node.children, out)
+    }
+  }
+}
+
 export function TreeView({
   tree,
   onChange,
   onActivateLeaf,
   onRequestNewSlab,
+  onDeleteLeaf,
   className,
 }: TreeViewProps) {
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<RenamingState>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropOver, setDropOver] = useState<DropOverState>(null)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
+  // Clear focus when user clicks anywhere outside the tree
+  // (sidebar background, terminal, etc.). The visual focus
+  // ring tracks focusedId, so this also clears the ring.
+  useEffect(() => {
+    function onPointerDown(event: PointerEvent) {
+      const root = rootRef.current
+      if (!root) return
+      const target = event.target as Node | null
+      if (target && root.contains(target)) return
+      setFocusedId(null)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+    }
+  }, [])
 
   // Visible-order traversal for kb nav.
   const visible = useMemo(() => visibleOrder(tree), [tree])
@@ -114,16 +155,34 @@ export function TreeView({
 
   const deleteNode = useCallback(
     (id: string) => {
-      const { tree: next } = removeNode(tree, id)
+      const { tree: next, removed } = removeNode(tree, id)
+      if (removed && onDeleteLeaf) {
+        // Fire for every leaf descendant (one for a leaf,
+        // many for a group) so the consumer can kill each
+        // slab's underlying PTY.
+        const leaves =
+          removed.kind === 'leaf' ? [removed] : flattenLeaves([removed])
+        for (const leaf of leaves) onDeleteLeaf(leaf)
+      }
       onChange(next)
       setFocusedId(null)
     },
-    [tree, onChange],
+    [tree, onChange, onDeleteLeaf],
   )
 
   const insertGroupSibling = useCallback(
     (afterId: string | null) => {
-      const group = makeGroup('group')
+      // Auto-name: first group is `group`, then `group-2`,
+      // `group-3`, etc. Don't reuse a label already taken.
+      const used = new Set<string>()
+      collectGroupLabels(tree, used)
+      let label = 'group'
+      let n = 2
+      while (used.has(label)) {
+        label = `group-${n}`
+        n += 1
+      }
+      const group = makeGroup(label)
       let next: TreeNode[]
       if (afterId === null) {
         next = [...tree, group]
@@ -134,7 +193,7 @@ export function TreeView({
       onChange(next)
       setFocusedId(group.id)
       // Auto-rename so the user can type a name immediately.
-      setRenaming({ id: group.id, draft: 'group' })
+      setRenaming({ id: group.id, draft: label })
     },
     [tree, onChange],
   )
@@ -144,16 +203,13 @@ export function TreeView({
     const result = await onRequestNewSlab()
     if (!result) return
     const leaf = makeLeaf(result.name)
-    // Insert into the focused group's children, or at root.
+    // Always a SIBLING of the focused node — never inside
+    // a group. If focused is null, append to root. To put
+    // a leaf INSIDE a group, drag it in.
     let parentId: string | null = null
     if (focusedId) {
-      const focused = findNode(tree, focusedId)
-      if (focused?.kind === 'group') {
-        parentId = focused.id
-      } else if (focused) {
-        const parent = findParent(tree, focused.id)
-        parentId = parent?.id ?? null
-      }
+      const parent = findParent(tree, focusedId)
+      parentId = parent?.id ?? null
     }
     const next = appendNode(tree, leaf, parentId)
     onChange(next)
@@ -182,7 +238,17 @@ export function TreeView({
         ? visible.findIndex(n => n.id === focusedId)
         : -1
       const next = (i + delta + visible.length) % visible.length
-      setFocusedId(visible[next]!.id)
+      const nextId = visible[next]!.id
+      setFocusedId(nextId)
+      // Move actual DOM focus too so subsequent keys
+      // (arrow / Enter / Cmd+T / etc.) fire on the new
+      // row's handler, not the previous row's.
+      requestAnimationFrame(() => {
+        const el = rootRef.current?.querySelector(
+          `[data-rock-node-id="${nextId}"]`,
+        ) as HTMLElement | null
+        el?.focus()
+      })
     },
     [focusedId, visible],
   )
@@ -197,16 +263,75 @@ export function TreeView({
     setDragId(String(event.active.id))
   }
 
+  /**
+   * dnd-kit uses pointer events (not native HTML5 drag),
+   * so we compute the drop position from rect geometry here
+   * instead of native onDragOver handlers on the row. Sets
+   * dropOver state so the row's data-drop attribute gives
+   * the CSS indicator (line above/below for sibling drops,
+   * tint for inside-group drops).
+   */
+  function handleDragOver(event: DragOverEvent) {
+    const { active, over } = event
+    if (!over) {
+      setDropOver(null)
+      return
+    }
+    const overId = String(over.id)
+    if (overId === String(active.id)) {
+      setDropOver(null)
+      return
+    }
+    const activeRect = active.rect.current.translated
+    const overRect = over.rect
+    if (!activeRect) {
+      setDropOver(null)
+      return
+    }
+    const activeCenter = activeRect.top + activeRect.height / 2
+    const overTop = overRect.top
+    const overHeight = overRect.height
+
+    const overNode = findNode(tree, overId)
+    // Groups: the registered drop target is the group's
+    // HEADER only (children render below in their own
+    // sortable rows). So any cursor-over-header = "drop
+    // INSIDE this group". Anything above/below the header
+    // is intercepted by sibling rows.
+    if (overNode?.kind === 'group') {
+      setDropOver({ targetId: overId, position: 'inside' })
+      return
+    }
+
+    // Leaves: simple before/after split at the midpoint.
+    const position: DropPosition =
+      activeCenter < overTop + overHeight / 2 ? 'before' : 'after'
+    setDropOver({ targetId: overId, position })
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
+    const stagedDrop = dropOver
     setDragId(null)
     setDropOver(null)
-    if (!over) return
+    setFocusedId(null)
     const dragId = String(active.id)
+    // Tail sentinel (or no over at all) — append to root.
+    // The "no over" case happens when the cursor leaves
+    // every sortable item's rect (eg. dropped far below
+    // the last row, into empty space). Append-to-root is
+    // the most useful interpretation.
+    if (!over || String(over.id) === END_DROP_ID) {
+      const dragNode = findNode(tree, dragId)
+      if (!dragNode) return
+      const { tree: withoutDrag } = removeNode(tree, dragId)
+      onChange([...withoutDrag, dragNode])
+      return
+    }
     const overId = String(over.id)
     if (dragId === overId) return
-    const position = dropOver?.targetId === overId
-      ? dropOver.position
+    const position = stagedDrop?.targetId === overId
+      ? stagedDrop.position
       : 'after'
     onChange(moveNode(tree, dragId, overId, position))
   }
@@ -219,9 +344,15 @@ export function TreeView({
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div data-rock-tree="" role="tree" className={className}>
+      <div
+        ref={rootRef}
+        data-rock-tree=""
+        role="tree"
+        className={className}
+      >
         {tree.map(node => (
           <NodeRow
             key={node.id}
@@ -244,6 +375,12 @@ export function TreeView({
             onMoveFocus={moveFocus}
           />
         ))}
+        {/* Tail drop zone — catches drags past the last
+            visible row. Without this, dnd-kit's collision
+            detection finds nothing under the cursor when
+            you drag below the list, so the drop is a no-op
+            (you can never reach "end of root"). */}
+        <TailDropZone visible={dragId !== null} />
       </div>
       <DragOverlay
         dropAnimation={{
@@ -254,6 +391,31 @@ export function TreeView({
         {dragNode ? <DragGhost node={dragNode} /> : null}
       </DragOverlay>
     </DndContext>
+  )
+}
+
+/**
+ * Invisible-but-present drop target at the end of the tree.
+ * Only renders meaningfully during a drag so it doesn't
+ * occupy clickable space at rest.
+ */
+function TailDropZone({ visible }: { visible: boolean }) {
+  const sortable = useSortable({ id: END_DROP_ID })
+  // Whether dnd-kit currently picks THIS as the over
+  // target. We use it to show the drop indicator line.
+  const isOver = sortable.isOver
+  return (
+    <div
+      ref={sortable.setNodeRef}
+      data-rock-tree-tail=""
+      data-active={String(visible)}
+      data-drop={isOver ? 'after' : ''}
+      style={{
+        position: 'relative',
+        minHeight: visible ? 200 : 8,
+        width: '100%',
+      }}
+    />
   )
 }
 
@@ -320,107 +482,120 @@ function GroupRow(props: NodeRowProps & { node: GroupNode }) {
   const isDragging = sortable.isDragging
 
   function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'ArrowDown') {
+    // Helper — preventDefault + stopPropagation so global
+    // Keys bindings on window don't double-fire when the
+    // tree handles the key.
+    const handled = () => {
       event.preventDefault()
+      event.stopPropagation()
+    }
+    if (event.key === 'ArrowDown') {
+      handled()
       onMoveFocus(+1)
     } else if (event.key === 'ArrowUp') {
-      event.preventDefault()
+      handled()
       onMoveFocus(-1)
     } else if (event.key === 'ArrowRight') {
-      event.preventDefault()
+      handled()
       if (node.collapsed) onToggleCollapse(node.id)
     } else if (event.key === 'ArrowLeft') {
-      event.preventDefault()
+      handled()
       if (!node.collapsed) onToggleCollapse(node.id)
     } else if (event.key === ' ') {
-      event.preventDefault()
+      handled()
       onToggleCollapse(node.id)
     } else if (event.key === 'Enter') {
-      event.preventDefault()
+      handled()
       onStartRename(node.id)
     } else if (
       (event.metaKey || event.ctrlKey) &&
       event.key.toLowerCase() === 't'
     ) {
-      event.preventDefault()
+      handled()
       onNewTab()
     } else if (
       (event.metaKey || event.ctrlKey) &&
       event.shiftKey &&
       event.key.toLowerCase() === 'g'
     ) {
-      event.preventDefault()
+      handled()
       onNewGroup(node.id)
     } else if (
       (event.metaKey || event.ctrlKey) &&
-      event.key.toLowerCase() === 'w'
+      (event.key.toLowerCase() === 'w' ||
+        event.key === 'Backspace' ||
+        event.key === 'Delete')
     ) {
-      event.preventDefault()
+      handled()
       onDelete(node.id)
     }
   }
 
-  function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
-    // dnd-kit owns the actual drag; we just set hint state
-    // for the inside-vs-around drop position.
-    const rect = event.currentTarget.getBoundingClientRect()
-    const y = event.clientY - rect.top
-    const h = rect.height
-    let position: DropPosition = 'inside'
-    if (y < h * 0.25) position = 'before'
-    else if (y > h * 0.75) position = 'after'
-    setDropOver({ targetId: node.id, position })
-  }
-
   return (
-    <div ref={sortable.setNodeRef} style={{
-      transform: CSS.Transform.toString(sortable.transform),
-      transition: sortable.transition,
-    }}>
+    <div
+      data-rock-branch=""
+      data-collapsed={String(node.collapsed)}
+      data-focused={String(isFocused)}
+      data-dragging={String(isDragging)}
+      data-drop={isDropTarget ? dropOver.position : ''}
+    >
+      {/* Header is the drop target. Registering setNodeRef
+          here (not on the outer div) means dnd-kit's
+          collision detection measures only the header's
+          rect — so "inside" drops can fire when the
+          cursor is on the header, not on a child row. */}
       <div
+        ref={sortable.setNodeRef}
         {...sortable.attributes}
         {...sortable.listeners}
-        data-rock-branch=""
-        data-collapsed={String(node.collapsed)}
-        data-focused={String(isFocused)}
-        data-dragging={String(isDragging)}
-        data-drop={isDropTarget ? dropOver.position : ''}
+        data-rock-branch-header=""
+        data-rock-node-id={node.id}
         tabIndex={0}
         role="treeitem"
         aria-expanded={!node.collapsed}
+        style={{
+          paddingLeft: 16 + depth * 14,
+        paddingRight: 16,
+          transform: CSS.Transform.toString(sortable.transform),
+          transition: sortable.transition,
+        }}
         onKeyDown={handleKeyDown}
         onFocus={() => setFocusedId(node.id)}
-        onDragOver={handleDragOver}
-        onDragLeave={() => setDropOver(null)}
+        onClick={(e) => {
+          if (!isRenaming) onToggleCollapse(node.id)
+          e.stopPropagation()
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation()
+          onStartRename(node.id)
+        }}
       >
-        <div
-          data-rock-branch-header=""
-          style={{ paddingLeft: 8 + depth * 12 }}
-          onClick={(e) => {
-            // Click the chevron area or label both toggle.
-            if (!isRenaming) onToggleCollapse(node.id)
-            e.stopPropagation()
-          }}
-          onDoubleClick={(e) => {
-            e.stopPropagation()
-            onStartRename(node.id)
-          }}
-        >
-          <span data-rock-branch-caret="" data-collapsed={String(node.collapsed)}>
-            {node.collapsed ? '▸' : '▾'}
-          </span>
-          {isRenaming ? (
-            <RenameInput
-              draft={renaming!.draft}
-              onChange={onRenameDraft}
-              onCommit={onCommitRename}
-              onCancel={onCancelRename}
-            />
-          ) : (
+        {isRenaming ? (
+          <RenameInput
+            draft={renaming!.draft}
+            onChange={onRenameDraft}
+            onCommit={onCommitRename}
+            onCancel={onCancelRename}
+          />
+        ) : (
+          <>
             <span data-rock-branch-label="">{node.label}</span>
-          )}
-          <GroupStatusBadge group={node} />
-        </div>
+            {/* Collapse state indicator — subtle right/down
+                caret AFTER the label so it doesn't compete
+                with the indent. Faint vs the label so it
+                reads as supplemental. */}
+            <span
+              data-rock-branch-caret=""
+              data-collapsed={String(node.collapsed)}
+              aria-hidden
+            >
+              {node.collapsed ? '▸' : '▾'}
+            </span>
+          </>
+        )}
+        {/* GroupStatusBadge intentionally omitted from the
+            default chrome — felt noisy. Re-enable here if
+            we want it: <GroupStatusBadge group={node} /> */}
       </div>
       {!node.collapsed && (
         <div data-rock-branch-children="">
@@ -469,6 +644,29 @@ function LeafRow(props: NodeRowProps & { node: LeafNode }) {
   const isDropTarget = dropOver?.targetId === node.id
   const displayLabel = node.label ?? node.slabName
 
+  // Notify when a long-running command finishes. Skipped
+  // when the leaf is currently focused — if you're watching
+  // it, you don't need a notification. Notifications
+  // require the user to grant permission once
+  // (base.tsx does that on mount).
+  useCommandDuration(slabId, {
+    thresholdMs: 5000,
+    onComplete: (durationMs) => {
+      if (isActive || document.hidden === false && isActive) return
+      if (typeof Notification === 'undefined') return
+      if (Notification.permission !== 'granted') return
+      try {
+        const secs = (durationMs / 1000).toFixed(1)
+        new Notification(`${displayLabel} finished`, {
+          body: `Command ran for ${secs}s`,
+          silent: false,
+        })
+      } catch {
+        /* notification rate-limit or other browser quirk */
+      }
+    },
+  })
+
   const sortable = useSortable({ id: node.id })
   const isDragging = sortable.isDragging
 
@@ -505,21 +703,14 @@ function LeafRow(props: NodeRowProps & { node: LeafNode }) {
     }
   }
 
-  function handleDragOver(event: React.DragEvent<HTMLButtonElement>) {
-    const rect = event.currentTarget.getBoundingClientRect()
-    const y = event.clientY - rect.top
-    const h = rect.height
-    const position: DropPosition = y < h / 2 ? 'before' : 'after'
-    setDropOver({ targetId: node.id, position })
-  }
-
   if (isRenaming) {
     return (
       <div
         ref={sortable.setNodeRef}
         data-rock-leaf=""
         style={{
-          paddingLeft: 8 + depth * 12,
+          paddingLeft: 16 + depth * 14,
+        paddingRight: 16,
           transform: CSS.Transform.toString(sortable.transform),
           transition: sortable.transition,
         }}
@@ -541,13 +732,15 @@ function LeafRow(props: NodeRowProps & { node: LeafNode }) {
       {...sortable.attributes}
       {...sortable.listeners}
       data-rock-leaf=""
+      data-rock-node-id={node.id}
       data-active={String(isActive)}
       data-focused={String(isFocused)}
       data-dragging={String(isDragging)}
       data-drop={isDropTarget ? dropOver.position : ''}
       data-status={status}
       style={{
-        paddingLeft: 8 + depth * 12,
+        paddingLeft: 16 + depth * 14,
+        paddingRight: 16,
         transform: CSS.Transform.toString(sortable.transform),
         transition: sortable.transition,
       }}
@@ -555,11 +748,9 @@ function LeafRow(props: NodeRowProps & { node: LeafNode }) {
       onDoubleClick={() => onStartRename(node.id)}
       onKeyDown={handleKeyDown}
       onFocus={() => setFocusedId(node.id)}
-      onDragOver={handleDragOver}
-      onDragLeave={() => setDropOver(null)}
     >
       <span data-rock-leaf-label="">{displayLabel}</span>
-      <LeafStatusDot status={status} />
+      <LeafStatusDot status={status} slabId={slabId} />
     </button>
   )
 }
@@ -593,6 +784,11 @@ function RenameInput({
       onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
       onBlur={onCommit}
       onKeyDown={(e) => {
+        // Stop EVERY key from bubbling to the parent row.
+        // Without this, Enter / Escape / arrow keys would
+        // ALSO fire the row's handler — re-entering rename
+        // mode and blowing away the user's edits.
+        e.stopPropagation()
         if (e.key === 'Enter') {
           e.preventDefault()
           onCommit()
@@ -607,7 +803,26 @@ function RenameInput({
   )
 }
 
-function LeafStatusDot({ status }: { status: string }) {
+function LeafStatusDot({
+  status,
+  slabId,
+}: {
+  status: string
+  slabId: string | undefined
+}) {
+  // Busy = data flowing from the PTY in the last 250ms.
+  // Reads as "command is actively running output" when set
+  // while the shell would otherwise be at an idle prompt.
+  const { busy } = useSlabActivity(slabId)
+  // Effective glyph: busy beats status (so an exited slab
+  // doesn't pulse, but a running slab does).
+  if (busy && (status === 'running' || status === 'starting' || status === 'idle')) {
+    return (
+      <span data-rock-leaf-dot="" data-status="busy" aria-label="busy">
+        ⋯
+      </span>
+    )
+  }
   const map: Record<string, string> = {
     running:  '●',
     starting: '◐',

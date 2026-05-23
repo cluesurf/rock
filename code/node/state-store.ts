@@ -1,22 +1,39 @@
 /**
- * Per-project state persistence.
+ * Per-project state persistence — two-file layered model.
  *
- * Lives at `<projectRoot>/.rock/base.json`. Stores window
- * geometry, the tab list (name + label + last-known cwd),
- * and active tab. Gitignored by default — Rock auto-adds
- * `base.json` to `.rock/.gitignore` on first save.
+ *   <projectRoot>/.rock/base.json        Committed. Shared
+ *                                        baseline layout for
+ *                                        the project — the
+ *                                        author's intended
+ *                                        default sidebar tree
+ *                                        + workspace.
  *
- * Read on launch (before window creation) so we can spawn
- * shells at their last-known cwd. Written on graceful
- * shutdown, structural changes (new/close tab), rename,
- * and debounced cwd changes from OSC 7.
+ *   <projectRoot>/.rock/base.local.json  Gitignored. This
+ *                                        machine's state —
+ *                                        window position,
+ *                                        last-known cwds,
+ *                                        per-user tab order
+ *                                        and labels.
  *
- * Outside any project (no `.rock/` ancestor), persistence
- * is a no-op — the load returns null and save is skipped.
+ * Loading merges the two: `base.local.json` overrides
+ * `base.json` field by field. Saving writes ONLY to
+ * `base.local.json` — `base.json` is hand-curated by the
+ * author and never auto-written.
+ *
+ * The first save automatically adds `base.local.json` to
+ * `.rock/.gitignore`. `base.json` is intentionally NOT
+ * gitignored; the author commits it as the project's
+ * default Rock layout.
  */
 
-import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  renameSync,
+  mkdirSync,
+} from 'node:fs'
+import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { TreeNode } from '@/base/tree'
 
@@ -30,11 +47,8 @@ export type WindowState = {
 }
 
 export type TabState = {
-  /** Slab name — stable id used by Dock + IPC. */
   name: string
-  /** User-edited display label. Falls back to name when absent. */
   label?: string
-  /** Last-known cwd. Used when respawning the shell. */
   cwd?: string
 }
 
@@ -43,29 +57,45 @@ export type ProjectState = {
   windows: WindowState[]
 }
 
-const FILE = 'base.json'
+const FILE_BASE = 'base.json'
+const FILE_LOCAL = 'base.local.json'
 const GITIGNORE = '.gitignore'
 
 export function projectStatePath(rockFolderPath: string): string {
-  return join(rockFolderPath, FILE)
+  return join(rockFolderPath, FILE_BASE)
 }
 
+export function projectLocalStatePath(rockFolderPath: string): string {
+  return join(rockFolderPath, FILE_LOCAL)
+}
+
+/**
+ * Load the effective project state — `base.json` merged
+ * with per-machine overrides from `base.local.json`. If
+ * neither exists, returns null.
+ */
 export function loadProjectState(
   rockFolderPath: string,
 ): ProjectState | null {
-  const file = projectStatePath(rockFolderPath)
-  if (!existsSync(file)) return null
+  const base = readJson(join(rockFolderPath, FILE_BASE))
+  const local = readJson(join(rockFolderPath, FILE_LOCAL))
+  if (!base && !local) return null
+  return mergeState(base, local)
+}
+
+function readJson(filePath: string): ProjectState | null {
+  if (!existsSync(filePath)) return null
   try {
-    const raw = readFileSync(file, 'utf-8')
+    const raw = readFileSync(filePath, 'utf-8')
     const parsed = JSON.parse(raw) as ProjectState
     if (parsed.version !== 1 || !Array.isArray(parsed.windows)) {
-      console.warn(`[rock] state at ${file} is malformed; ignoring.`)
+      console.warn(`[rock] state at ${filePath} is malformed; ignoring.`)
       return null
     }
     return parsed
   } catch (error) {
     console.warn(
-      `[rock] couldn't read ${file}:`,
+      `[rock] couldn't read ${filePath}:`,
       error instanceof Error ? error.message : error,
     )
     return null
@@ -73,8 +103,43 @@ export function loadProjectState(
 }
 
 /**
- * Atomic write: temp file + rename, so a crash during
- * write can't leave a half-written base.json.
+ * Field-by-field merge: local overrides base. For each
+ * window slot, local fields win where defined; missing
+ * fields fall through to base.
+ */
+function mergeState(
+  base: ProjectState | null,
+  local: ProjectState | null,
+): ProjectState {
+  if (!base) return local ?? { version: 1, windows: [] }
+  if (!local) return base
+  const length = Math.max(base.windows.length, local.windows.length)
+  const windows: WindowState[] = []
+  for (let i = 0; i < length; i += 1) {
+    const b = base.windows[i]
+    const l = local.windows[i]
+    if (!b) {
+      if (l) windows.push(l)
+      continue
+    }
+    if (!l) {
+      windows.push(b)
+      continue
+    }
+    windows.push({
+      tabs: l.tabs ?? b.tabs,
+      activeIndex: l.activeIndex ?? b.activeIndex,
+      tree: l.tree ?? b.tree,
+      position: l.position ?? b.position,
+    })
+  }
+  return { version: 1, windows }
+}
+
+/**
+ * Atomic write of the per-machine override file (NEVER
+ * touches `base.json`). Temp file + rename so a crash mid-
+ * write can't leave a half-written file.
  */
 export function saveProjectState(
   rockFolderPath: string,
@@ -88,7 +153,7 @@ export function saveProjectState(
     }
   }
   ensureGitignored(rockFolderPath)
-  const file = projectStatePath(rockFolderPath)
+  const file = projectLocalStatePath(rockFolderPath)
   const tmp = join(tmpdir(), `rock-state-${Date.now()}-${process.pid}.json`)
   try {
     writeFileSync(tmp, JSON.stringify(state, null, 2), 'utf-8')
@@ -102,23 +167,28 @@ export function saveProjectState(
 }
 
 /**
- * Make sure `.rock/.gitignore` has `base.json` in it so
- * the state file never gets committed.
+ * Make sure `.rock/.gitignore` covers the per-machine files
+ * (base.local.json + the bundle cache dir). `base.json` is
+ * intentionally NOT gitignored — the project author commits
+ * it as the shared layout.
  */
 function ensureGitignored(rockFolderPath: string): void {
   const gi = join(rockFolderPath, GITIGNORE)
+  const entries = [FILE_LOCAL, '.cache/']
   try {
-    if (!existsSync(gi)) {
-      writeFileSync(gi, `${FILE}\n`, 'utf-8')
-      return
-    }
-    const current = readFileSync(gi, 'utf-8')
+    let current = existsSync(gi) ? readFileSync(gi, 'utf-8') : ''
     const lines = current.split(/\r?\n/)
-    if (lines.includes(FILE)) return
-    const updated =
-      current.endsWith('\n') ? `${current}${FILE}\n` : `${current}\n${FILE}\n`
-    writeFileSync(gi, updated, 'utf-8')
+    let changed = false
+    for (const entry of entries) {
+      if (!lines.includes(entry)) {
+        current = current.endsWith('\n') || current.length === 0
+          ? `${current}${entry}\n`
+          : `${current}\n${entry}\n`
+        changed = true
+      }
+    }
+    if (changed) writeFileSync(gi, current, 'utf-8')
   } catch {
-    /* gitignore is best-effort — don't fail the save */
+    /* best-effort */
   }
 }

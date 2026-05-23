@@ -2,7 +2,7 @@
 # Visual smoke test for the cluesurf theme.
 # Run inside a Rock terminal to eyeball every color + attribute.
 #
-#   bash test/theme/cluesurf.sh
+#   bash test/type.sh
 
 set -u
 

@@ -22,15 +22,19 @@ import {
   Keys,
   TreeView,
   loadUserModule,
+  useAnyBusySlabs,
   useRockTheme,
+  useTerminalApi,
   useTerminalStore,
 } from '@cluesurf/rock/face'
 import {
   flatTree,
+  flattenLeaves,
+  removeNode,
   type LeafNode,
   type TreeNode,
 } from '@cluesurf/rock/base'
-import { cluesurf } from '@cluesurf/rock/theme/cluesurf'
+import { cluesurfDark as cluesurf } from '@cluesurf/rock/theme/cluesurf/dark'
 
 type Phase =
   | { stage: 'loading' }
@@ -51,6 +55,7 @@ declare global {
       renameSlab?(name: string, label: string): Promise<void>
       getTree?(): Promise<TreeNode[] | null>
       saveTree?(tree: TreeNode[]): Promise<void>
+      toggleFullscreen?(): Promise<void>
     }
   }
 }
@@ -145,6 +150,15 @@ function collectSlabNames(tree: TreeNode[], out: Set<string>): void {
   }
 }
 
+function clampWidth(n: number): number {
+  if (n < 140) return 140
+  // Never wider than half the window — keep the terminal
+  // pane at least as wide as the sidebar at all times.
+  const max = Math.min(520, Math.floor(window.innerWidth / 2))
+  if (n > max) return max
+  return n
+}
+
 // Persisted custom labels keyed by slab NAME (the internal
 // id like 'term', 'term-2'). The slab name stays stable;
 // only the display label changes.
@@ -178,6 +192,65 @@ function ShellContent() {
   const setActive = useTerminalStore(s => s.setActiveSlab)
   const activeSlabId = useTerminalStore(s => s.activeSlabId)
   const theme = useRockTheme()
+
+  // Sidebar visibility — toggled by Cmd+B. Persists in
+  // localStorage so it survives reloads (cheap, no IPC).
+  const [sidebarVisible, setSidebarVisible] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem('rock:sidebar-visible') !== 'false'
+    } catch {
+      return true
+    }
+  })
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        'rock:sidebar-visible',
+        sidebarVisible ? 'true' : 'false',
+      )
+    } catch { /* ignore */ }
+  }, [sidebarVisible])
+
+  // Sidebar width (px) — draggable divider on the right
+  // edge sets it. Clamped 140–520. Persisted.
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const raw = window.localStorage.getItem('rock:sidebar-width')
+      const n = raw ? Number(raw) : 224
+      return Number.isFinite(n) ? clampWidth(n) : 224
+    } catch {
+      return 224
+    }
+  })
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('rock:sidebar-width', String(sidebarWidth))
+    } catch { /* ignore */ }
+  }, [sidebarWidth])
+  // When the window resizes, re-clamp the sidebar so it
+  // never exceeds half-width.
+  useEffect(() => {
+    function onResize() {
+      setSidebarWidth(w => clampWidth(w))
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  const startSidebarResize = (startX: number, startWidth: number) => {
+    function onMove(event: MouseEvent) {
+      setSidebarWidth(clampWidth(startWidth + (event.clientX - startX)))
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
 
   // Sidebar tree: hydrated from .rock/base.json on mount,
   // saved back to disk on every mutation. If no persisted
@@ -246,6 +319,49 @@ function ShellContent() {
     return { name }
   }, [])
 
+  // ── Confirm close on running processes ─────────────────
+  // If any slab has shown output in the last 5s, treat as
+  // "still running" and confirm before closing the window.
+  const busySlabs = useAnyBusySlabs(5000)
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (busySlabs.size === 0) return
+      const ok = window.confirm(
+        `Rock has ${busySlabs.size} active terminal${busySlabs.size === 1 ? '' : 's'}. Close anyway?`,
+      )
+      if (!ok) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [busySlabs])
+
+  // Request notification permission once — used by the
+  // command-duration notifier in TreeView's LeafRow.
+  useEffect(() => {
+    if (
+      typeof Notification !== 'undefined' &&
+      Notification.permission === 'default'
+    ) {
+      void Notification.requestPermission().catch(() => {})
+    }
+  }, [])
+
+  // Kill the underlying PTY when a leaf is deleted from
+  // the tree so we don't leak shells (or any long-running
+  // process) just because their sidebar row disappeared.
+  const api = useTerminalApi()
+  const handleDeleteLeaf = useCallback(
+    (leaf: LeafNode) => {
+      const id = useTerminalStore.getState().slabIdByName[leaf.slabName]
+      if (!id) return
+      void api.request({ type: 'slab:kill', payload: { slabId: id } })
+    },
+    [api],
+  )
+
   // Shell color palette. Chrome (sidebar + active row) is
   // one shade lighter than the terminal background so the
   // panes layer cleanly.
@@ -300,21 +416,52 @@ function ShellContent() {
     }
   }, [activeSlabId, slabNames, slabIdByName, setActive])
 
-  // Cmd+T → spawn a new slab and focus it.
-  // Cmd+Shift+] / Cmd+Shift+[ → cycle through slabs.
+  // Cmd+T          → spawn a new slab and focus it
+  // Cmd+Shift+G    → create a new top-level group (works
+  //                  even when xterm is focused; TreeView
+  //                  also handles this when a row is focused
+  //                  for "sibling of focused" behavior)
+  // Cmd+Shift+] / [ → cycle slabs
   const bindings = useMemo(
     () => [
       {
         keys: 'cmd+t',
         do: async () => {
+          // Skip if focus is in the tree — the TreeView's
+          // per-row handler already spawned. Avoids the
+          // double-spawn that happened before stopProp
+          // started working reliably across handlers.
+          if (
+            document.activeElement instanceof HTMLElement &&
+            document.activeElement.closest('[data-rock-tree]')
+          ) return
           const { name } = await window.app.newSlab()
-          // setActive runs after slabIdByName updates via
-          // the broadcast — schedule one tick out.
           setTimeout(() => {
             const id =
               useTerminalStore.getState().slabIdByName[name]
             if (id) setActive(id)
           }, 50)
+        },
+      },
+      {
+        keys: 'cmd+shift+g',
+        do: () => {
+          // Create a new top-level group. The TreeView's
+          // per-row handler also handles Cmd+Shift+G to
+          // create as a sibling of the focused row.
+          setTree(prev => {
+            const base = prev ?? []
+            const newGroup: TreeNode = {
+              kind: 'group',
+              id: `g_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+              label: 'group',
+              collapsed: false,
+              children: [],
+            }
+            const next = [...base, newGroup]
+            void window.app.saveTree?.(next)
+            return next
+          })
         },
       },
       {
@@ -325,9 +472,56 @@ function ShellContent() {
         keys: 'cmd+shift+[',
         do: () => cycleSlab(-1),
       },
+      {
+        keys: 'cmd+backspace',
+        do: () => closeFocusedTab(),
+      },
+      {
+        keys: 'cmd+b',
+        do: () => setSidebarVisible(v => !v),
+      },
+      {
+        keys: 'ctrl+cmd+f',
+        do: () => void window.app.toggleFullscreen?.(),
+      },
     ],
     [setActive],
   )
+
+  /**
+   * Close the active slab's tab: kill the PTY, remove its
+   * leaf from the tree, persist. If the tree is empty after
+   * removal, close the window so Cmd+Backspace on the last
+   * tab quits the app gracefully.
+   */
+  function closeFocusedTab() {
+    setTree(prev => {
+      if (!prev) return prev
+      const state = useTerminalStore.getState()
+      const activeId = state.activeSlabId
+      if (!activeId) return prev
+      const slabName = Object.keys(state.slabIdByName).find(
+        n => state.slabIdByName[n] === activeId,
+      )
+      if (!slabName) return prev
+      // Remove every leaf pointing at this slabName (usually
+      // one, but a leaf can be cloned to appear in multiple
+      // groups). Kill the PTY once.
+      const leaves = flattenLeaves(prev).filter(l => l.slabName === slabName)
+      let next = prev
+      for (const leaf of leaves) {
+        next = removeNode(next, leaf.id).tree
+      }
+      void api.request({ type: 'slab:kill', payload: { slabId: activeId } })
+      void window.app.saveTree?.(next)
+      if (flattenLeaves(next).length === 0) {
+        // Last tab gone → close the window. Defer one tick so
+        // the state update finishes first.
+        setTimeout(() => window.close(), 50)
+      }
+      return next
+    })
+  }
 
   function cycleSlab(delta: number) {
     const names = Object.keys(
@@ -351,29 +545,53 @@ function ShellContent() {
       className="flex h-full w-full"
       style={{ background: ui.background, color: ui.foreground }}
     >
-      <aside
-        className="w-56 shrink-0 flex flex-col"
-        style={{
-          background: ui.chromeBg,
-          borderRight: `1px solid ${ui.border}`,
-        }}
-      >
-        {/* Drag-region spacer so the macOS title bar can be
-            grabbed despite titleBarStyle: hiddenInset. */}
-        <div
-          className="h-10"
-          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-        />
-        {tree && (
-          <TreeView
-            tree={tree}
-            onChange={handleTreeChange}
-            onActivateLeaf={handleActivateLeaf}
-            onRequestNewSlab={handleRequestNewSlab}
-            className="flex-1 overflow-auto"
-          />
-        )}
-      </aside>
+      {sidebarVisible && (
+        <>
+          <aside
+            className="shrink-0 flex flex-col relative"
+            style={{
+              width: sidebarWidth,
+              background: ui.chromeBg,
+              borderRight: `1px solid ${ui.border}`,
+            }}
+          >
+            {/* Drag-region spacer so the macOS title bar
+                can be grabbed despite titleBarStyle hidden. */}
+            <div
+              className="h-10"
+              style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+            />
+            {tree && (
+              <TreeView
+                tree={tree}
+                onChange={handleTreeChange}
+                onActivateLeaf={handleActivateLeaf}
+                onRequestNewSlab={handleRequestNewSlab}
+                onDeleteLeaf={handleDeleteLeaf}
+                className="flex-1 overflow-auto"
+              />
+            )}
+            {/* Resizer — 4px-wide grab strip on the right
+                edge. Cursor changes to col-resize on hover. */}
+            <div
+              onMouseDown={(e) => {
+                e.preventDefault()
+                startSidebarResize(e.clientX, sidebarWidth)
+              }}
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: -2,
+                bottom: 0,
+                width: 4,
+                cursor: 'col-resize',
+                zIndex: 10,
+              }}
+              aria-label="resize sidebar"
+            />
+          </aside>
+        </>
+      )}
       <main
         className="flex-1 min-w-0 p-2 relative"
         style={{ background: ui.background }}

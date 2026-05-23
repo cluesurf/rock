@@ -80,49 +80,87 @@
   /* ── Tree ──────────────────────────────────────── */
 
   [data-rock-tree] {
-    @apply flex flex-col gap-1 p-2 text-sm overflow-auto;
+    /* No outer padding — rows must be able to paint
+       edge-to-edge inside the sidebar. Per-row left
+       indent comes from inline paddingLeft on each
+       NodeRow (depth-aware). */
+    @apply flex flex-col text-sm overflow-auto;
     color: var(--rock-fg, #e4e4e7);
   }
   [data-rock-branch] {
     @apply flex flex-col;
   }
   [data-rock-branch-header] {
-    @apply flex items-center gap-1 w-full px-2 py-1
+    @apply flex items-center gap-1 w-full py-1
            text-xs uppercase tracking-wider
-           cursor-pointer select-none bg-transparent border-0 text-left;
-    color: var(--rock-muted, #71717a);
-    transition: color 120ms;
+           cursor-pointer select-none border-0 text-left;
+    /* Group label text — 2 shades darker than the leaf
+       labels (which are zinc-100) so groups read as
+       headers, not items. zinc-300. */
+    color: #d4d4d8;
+    background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 8%, transparent);
+    transition: background-color 120ms;
   }
   [data-rock-branch-header]:hover {
-    color: var(--rock-fg, #e4e4e7);
-  }
-  [data-rock-branch-caret] {
-    @apply text-[8px] w-3;
-    color: var(--rock-muted, #71717a);
-    opacity: 0.6;
+    background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 14%, transparent);
   }
   [data-rock-branch-icon] { color: var(--rock-muted, #71717a); }
-  [data-rock-branch-label] { @apply flex-1; }
+  [data-rock-branch-label] {
+    /* NOT flex-1 — let the caret sit next to the label
+       instead of being pushed all the way right. */
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Caret after the group label — faint, half-em, indicates
+     collapse state. ▸ when collapsed, ▾ when expanded. */
+  [data-rock-branch-caret] {
+    margin-left: 6px;
+    font-size: 0.65em;
+    line-height: 1;
+    color: color-mix(in srgb, currentColor 50%, transparent);
+    transform: translateY(-1px);
+  }
   [data-rock-branch-actions] { @apply ml-auto opacity-0 group-hover:opacity-100; }
   [data-rock-branch-children] {
-    @apply flex flex-col gap-0.5 pl-3;
+    /* No padding or gap — every row paints edge-to-edge.
+       Visual nesting is the inline paddingLeft on each
+       NodeRow (depth * 14). The container is a pure
+       layout passthrough. */
+    @apply flex flex-col;
   }
 
   [data-rock-leaf] {
-    @apply flex items-center gap-2 w-full px-2 py-1 rounded
+    @apply flex items-center py-1
            text-sm text-left bg-transparent border-0 cursor-pointer
            select-none;
-    color: var(--rock-muted, #71717a);
+    /* HARD edge-to-edge — block-level with 100% width so
+       the bg fills regardless of button defaults; zero
+       border-radius. Both !important to defeat any
+       Tailwind preflight or browser default. */
+    display: flex !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    text-transform: none;
+    /* Leaf default — zinc-100 ish. Brighter than groups
+       (zinc-200) but still below selected (pure white). */
+    color: #f4f4f5;
     transition: background-color 100ms, color 100ms;
   }
   [data-rock-tree] { user-select: none; -webkit-user-select: none; }
   [data-rock-leaf]:hover {
-    background: var(--rock-hover-bg, rgba(39, 39, 42, 0.5));
-    color: var(--rock-fg, #e4e4e7);
+    background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 6%, transparent);
   }
   [data-rock-leaf][data-active='true'] {
-    background: var(--rock-active-bg, #27272a);
-    color: var(--rock-fg, #e4e4e7);
+    /* Active leaf — pure white text, slightly brighter bg
+       than the group header strip (fg @ 8%) so selection
+       reads. */
+    background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 16%, transparent);
+    color: #ffffff;
   }
   [data-rock-leaf-dot] {
     @apply text-[10px] leading-none;
@@ -136,12 +174,24 @@
   [data-rock-leaf-label] { @apply flex-1 truncate; }
   [data-rock-leaf-actions] { @apply ml-auto; }
 
-  /* TreeView — Phase 1 visual states. */
-  [data-rock-leaf][data-focused='true']:not([data-active='true']) {
-    box-shadow: inset 0 0 0 1px var(--rock-accent, #8b5cf6);
-  }
-  [data-rock-branch][data-focused='true'] > [data-rock-branch-header] {
-    box-shadow: inset 0 0 0 1px var(--rock-accent, #8b5cf6);
+  /* The accent ring lives ON THE INPUT (see
+     [data-rock-rename] below), NOT on the parent row.
+     Putting it on the row would make it edge-to-edge with
+     the sidebar; on the input it's a properly-sized box
+     inside the row's padding. */
+
+  /* Kill the browser's default focus outline on tree rows.
+     Without this, macOS draws an orange/blue focus ring
+     on any keystroke (it interprets unmatched keys as
+     potential form input). We don't want a focus ring at
+     all on rows — visual state is conveyed by data-active
+     and the rename input's own ring. */
+  [data-rock-leaf]:focus,
+  [data-rock-leaf]:focus-visible,
+  [data-rock-branch] > [data-rock-branch-header]:focus,
+  [data-rock-branch] > [data-rock-branch-header]:focus-visible {
+    outline: none !important;
+    box-shadow: none;
   }
 
   /* Cursor affordance — grab when hovered, grabbing while
@@ -166,8 +216,23 @@
      tall, accent-colored, with a small dot on the leading
      edge for visual punch. */
   [data-rock-leaf],
-  [data-rock-branch] > [data-rock-branch-header] {
+  [data-rock-branch] > [data-rock-branch-header],
+  [data-rock-tree-tail] {
     position: relative;
+  }
+  /* Tail-of-tree drop indicator — shows when dragging into
+     the empty area below the last row (drop = append to
+     root). Same accent bar look as before/after. */
+  [data-rock-tree-tail][data-drop='after']::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 8px;
+    right: 8px;
+    height: 2px;
+    background: var(--rock-accent, #8b5cf6);
+    border-radius: 2px;
+    pointer-events: none;
   }
   [data-rock-leaf][data-drop='before']::before,
   [data-rock-branch][data-drop='before'] > [data-rock-branch-header]::before {
@@ -207,14 +272,38 @@
     color: var(--rock-muted, #71717a);
     padding-left: 6px;
   }
-  /* In-place rename input. Matches the row's box exactly
-     (no margin, full width, accent ring inset). */
+  /* In-place rename input. Strictly inherits font + size
+     so the text looks identical edit vs not-edit (no
+     "jolt" in font weight, family, leading). Transparent
+     background so the row's focus ring shows through — no
+     second ring around the input itself. */
   [data-rock-rename] {
-    @apply block w-full py-1 pr-2 text-sm outline-none border-0 m-0;
-    background: var(--rock-active-bg, #3f3f46);
-    color: var(--rock-fg, #e4e4e7);
-    box-shadow: inset 0 0 0 1px var(--rock-accent, #8b5cf6);
+    flex: 1 1 auto;
+    min-width: 0;
+    /* Internal text padding so the caret/letters aren't
+       flush with the ring. */
+    padding: 1px 6px;
+    /* External margin so the ring sits inset from the
+       row's content edges instead of overlapping the
+       row's left padding. */
+    margin: 0 2px;
+    height: auto;
+    font: inherit;
     font-family: inherit;
+    /* Inherit text-transform + letter-spacing so editing
+       a group label stays UPPERCASE; leaf stays lowercase. */
+    text-transform: inherit;
+    letter-spacing: inherit;
+    background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 10%, transparent);
+    color: inherit;
+    /* Accent ring on the INPUT itself (not the row), so
+       it's a properly-sized edit box, not an edge-to-edge
+       band. */
+    box-shadow: 0 0 0 1px var(--rock-accent, #8b5cf6);
+    border-radius: 3px;
+    border: 0;
+    outline: 0;
+    caret-color: var(--rock-accent, #8b5cf6);
   }
 
   /* ── Bar / Cell ────────────────────────────────── */

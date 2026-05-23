@@ -91,6 +91,9 @@ const api = {
   async saveTree(tree: unknown): Promise<void> {
     await ipcRenderer.invoke('rock:save-tree', tree)
   },
+  async toggleFullscreen(): Promise<void> {
+    await ipcRenderer.invoke('rock:toggle-fullscreen')
+  },
 }
 
 contextBridge.exposeInMainWorld('app', api)

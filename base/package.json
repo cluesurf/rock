@@ -10,14 +10,15 @@
     "build:lib": "cd .. && pnpm make",
     "predev": "pnpm setup-env && pnpm build:lib",
     "prebuild": "pnpm setup-env && pnpm build:lib",
-    "prestart": "pnpm setup-env",
+    "prestart": "pnpm setup-env && pnpm build:lib",
     "prepackage": "pnpm setup-env && pnpm build",
     "setup-env": "pnpm fix-bins && pnpm fix-spawn-helper && pnpm fix-electron && pnpm fix-native",
     "fix-bins": "find ../node_modules -path '*/bin/*' \\( -name '*.js' -o -name '*.cjs' -o -name '*.mjs' \\) -exec chmod +x {} + 2>/dev/null; true",
     "fix-electron": "test -d ../node_modules/electron/dist || node ../node_modules/electron/install.js",
     "fix-native": "test -f ../node_modules/node-pty/build/Release/pty.node || bash -c 'export SDKROOT=\"$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk 2>/dev/null | tail -1)\"; pnpm dlx @electron/rebuild --only node-pty'",
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && pnpm build:cli",
+    "build:cli": "esbuild call/rock.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist-cli/rock.js --log-level=warning",
     "start": "electron-vite preview",
     "package": "electron-builder",
     "package:mac": "electron-builder --mac",
@@ -69,6 +70,10 @@
     "asarUnpack": [
       "**/node_modules/node-pty/**",
       "**/node_modules/better-sqlite3/**"
+    ],
+    "extraResources": [
+      { "from": "bin/rock", "to": "rock" },
+      { "from": "dist-cli/rock.js", "to": "rock.js" }
     ],
     "npmRebuild": false,
     "buildDependenciesFromSource": false,

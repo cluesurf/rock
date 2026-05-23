@@ -31,7 +31,9 @@ import { join } from 'node:path'
 import {
   findRockFolders,
   loadRockFolder,
-  bundleUserModule,
+  bundleUserModuleCached,
+  recordRecentProject,
+  mostRecentProject,
 } from '@cluesurf/rock/node'
 import { workspace, type WorkspaceDefinition } from '@cluesurf/rock'
 import { boot } from '@cluesurf/rock/boot'
@@ -41,7 +43,15 @@ function projectRootFromArgv(): string {
   // so the .app can find the user's .rock/ folder.
   const arg = argv.find(a => a.startsWith('--cwd='))
   if (arg) return arg.slice('--cwd='.length)
-  return env.ROCK_CWD ?? cwd()
+  if (env.ROCK_CWD) return env.ROCK_CWD
+  // Bare launch (open -a Rock from Finder, no cwd hint) →
+  // fall back to the most-recently-opened project. That
+  // turns "open Rock from the Dock" into "reopen what I
+  // had last time". Skipped when the user explicitly
+  // chose a different cwd above.
+  const recent = mostRecentProject()
+  if (recent) return recent
+  return cwd()
 }
 
 function defaultWorkspace(): WorkspaceDefinition {
@@ -80,13 +90,20 @@ async function main() {
       chosenWorkspace = loaded.workspace
     }
 
-    // JIT-bundle the single user entry point. The renderer
-    // imports rock://user/app.js and reads whatever is on
-    // `default` (Layout, Sidebar, commands, etc.).
+    // JIT-bundle the single user entry point. Uses a cache
+    // at <rockFolder>/.cache/ so subsequent launches with
+    // unchanged user code skip esbuild entirely (~30-400ms
+    // savings depending on bundle complexity).
     const entry = findUserEntry(folderPath)
     if (entry) {
-      const result = await bundleUserModule(entry)
-      if (result) userBundles['app.js'] = result.code
+      const code = await bundleUserModuleCached(folderPath, entry)
+      if (code) userBundles['app.js'] = code
+    }
+
+    // Record this project in the recents registry so the
+    // next bare launch can reopen it by default.
+    if (folders.projectRoot) {
+      recordRecentProject(folders.projectRoot)
     }
   } catch (error) {
     console.warn(

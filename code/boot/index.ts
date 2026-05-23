@@ -45,6 +45,7 @@ import {
   type ProjectState,
   type TabState,
 } from '@/node'
+import { startRockIpcServer } from '@/node/ipc-server'
 import type { TreeNode } from '@/base/tree'
 
 // Register the rock:// scheme as privileged. Must run
@@ -607,6 +608,16 @@ export async function boot(input: BootInput): Promise<AppHandle> {
     },
   )
 
+  // IPC: toggle native macOS full-screen on the focused
+  // window. Backstop for the View menu's "Toggle Full Screen"
+  // (Ctrl+Cmd+F) — explicit binding in case the menu role
+  // doesn't intercept.
+  ipcMain.handle('rock:toggle-fullscreen', () => {
+    const win = activeWindow()
+    if (!win || win.isDestroyed()) return
+    win.setFullScreen(!win.isFullScreen())
+  })
+
   // IPC: open URL in user's default browser. Used by the
   // terminal's custom link provider when a URL is clicked.
   ipcMain.handle('rock:open-external', async (_event, url: string) => {
@@ -688,7 +699,97 @@ export async function boot(input: BootInput): Promise<AppHandle> {
     registerRockProtocol(bundleStore)
     buildMenu()
     createWindow()
+    // Start the CLI IPC server (Unix-domain socket) so
+    // `rock list / send / focus / spawn / kill` can talk
+    // to this running Rock.app. Idempotent — safe even if
+    // a stale socket exists from a crashed prior run.
+    startRockIpcServer(dispatchCliCommand)
   })
+
+  // CLI command dispatcher. Receives { cmd, args } from
+  // the IPC server (Unix-socket connection from `rock` CLI)
+  // and returns the data to serialize back.
+  async function dispatchCliCommand(
+    cmd: string,
+    args: unknown,
+  ): Promise<unknown> {
+    const a = args as Record<string, unknown>
+    switch (cmd) {
+      case 'ping':
+        return { ok: true, name: input.name }
+      case 'list-slabs': {
+        return compiled.slabs.map(s => ({
+          name: s.name,
+          status: s.status,
+          cwd: liveCwds.get(s.id) ?? s.cwd,
+          program: s.program,
+        }))
+      }
+      case 'send': {
+        const slabName = String(a.slab ?? '')
+        const text = String(a.text ?? '')
+        const id = compiled.slabIdByName[slabName]
+        if (!id) throw new Error(`unknown slab: ${slabName}`)
+        manager.write(id, text)
+        return { sent: text.length }
+      }
+      case 'focus': {
+        const slabName = String(a.slab ?? '')
+        const id = compiled.slabIdByName[slabName]
+        if (!id) throw new Error(`unknown slab: ${slabName}`)
+        handle.focus(slabName)
+        const win = activeWindow()
+        if (win && !win.isDestroyed()) win.show()
+        return { focused: slabName }
+      }
+      case 'spawn': {
+        // Reuse the same handler used by Cmd+T in the
+        // renderer so spawn semantics stay consistent.
+        const baseName = a.name ? String(a.name) : undefined
+        const cwd = a.cwd ? String(a.cwd) : undefined
+        const usedNames = new Set(Object.keys(compiled.slabIdByName))
+        let name = baseName
+        if (!name) {
+          let n = 2
+          while (usedNames.has(`term-${n}`)) n += 1
+          name = `term-${n}`
+        }
+        if (usedNames.has(name)) {
+          throw new Error(`slab name '${name}' already exists`)
+        }
+        const { createId } = await import('@/base/ids')
+        const id = createId('slab')
+        compiled.slabIdByName[name] = id
+        const tabId = compiled.workspace.tabs[0]!.id
+        await manager.createSlab({
+          id,
+          workspaceId: compiled.workspace.id,
+          tabId,
+          name,
+          cwd,
+          cols: 80,
+          rows: 24,
+        })
+        liveCwds.set(id, cwd ?? process.cwd())
+        for (const w of wins) {
+          if (!w.isDestroyed()) {
+            w.webContents.send('rock:slab-map', compiled.slabIdByName)
+          }
+        }
+        scheduleSave()
+        return { name, id }
+      }
+      case 'kill': {
+        const slabName = String(a.slab ?? '')
+        const id = compiled.slabIdByName[slabName]
+        if (!id) throw new Error(`unknown slab: ${slabName}`)
+        manager.kill(id)
+        return { killed: slabName }
+      }
+      default:
+        throw new Error(`unknown cli cmd: ${cmd}`)
+    }
+  }
 
   app.on('window-all-closed', async () => {
     await gracefulShutdown()

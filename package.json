@@ -55,9 +55,9 @@
       "types": "./host/theme/*.d.ts",
       "default": "./host/theme/*.js"
     },
-    "./tailwind/preset.css": "./tailwind/preset.css"
+    "./tailwind/preset.css": "./code/tailwind/preset.css"
   },
-  "files": ["host", "tailwind"],
+  "files": ["host", "code/tailwind"],
   "scripts": {
     "make": "rm -rf host && tsc && tsc-alias --resolve-full-paths",
     "make:icons": "bash task/icons.sh",

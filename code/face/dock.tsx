@@ -26,7 +26,9 @@ const DEFAULT_OPTIONS: ITerminalOptions = {
   cursorBlink: true,
   allowProposedApi: true,
   convertEol: false,
-  scrollback: 20000,
+  // Soft cap memory by keeping ~10k lines of scrollback per
+  // slab. Override via the `terminalOptions` prop on Dock.
+  scrollback: 10000,
 }
 
 /**
@@ -54,19 +56,33 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
   const fitRef = useRef<FitAddon | null>(null)
   const pendingResizeRef = useRef<number | null>(null)
 
-  // Refocus this terminal whenever its slab becomes active.
-  // Without this, switching tabs via sidebar click leaves
-  // DOM focus on the leaf button — Ctrl+C and other
-  // keystrokes never reach the PTY. Re-fires on every
-  // activation so clicking back to a tab also re-grabs
-  // keyboard focus.
+  // Refocus this terminal when its slab becomes active —
+  // but DON'T steal focus from the sidebar tree. If the
+  // user clicked a leaf to switch tabs, they're using the
+  // sidebar (arrow keys, rename, etc.) and stealing focus
+  // here would break that flow.
+  //
+  // Rule: only auto-focus if either nothing has DOM focus
+  // (initial mount) OR the previous focus was on another
+  // xterm canvas (switching between terminals from inside
+  // a terminal). Skip if focus is in the sidebar / chrome.
   useEffect(() => {
     if (!isActive) return
     const term = termRef.current
     if (!term) return
-    // requestAnimationFrame so the focus call wins against
-    // whatever click event handler just set focus elsewhere.
-    const id = requestAnimationFrame(() => term.focus())
+    const id = requestAnimationFrame(() => {
+      const active = document.activeElement as HTMLElement | null
+      if (active && active !== document.body) {
+        // User is focused somewhere already — only re-focus
+        // if they were in another xterm (switching tabs from
+        // inside the terminal). Skip if they're in the
+        // sidebar tree, a button, an input, etc.
+        const inTree = active.closest('[data-rock-tree]')
+        const inXterm = active.classList.contains('xterm-helper-textarea')
+        if (inTree || !inXterm) return
+      }
+      term.focus()
+    })
     return () => cancelAnimationFrame(id)
   }, [isActive])
 
@@ -151,6 +167,28 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
     // the PTY until the user clicks on the canvas.
     term.focus()
 
+    // Multi-line paste warning. xterm pastes whatever's on
+    // the clipboard; if it contains newlines, the shell
+    // executes each line immediately on hit-Enter. Easy
+    // path to disaster (`rm -rf /` snuck into a snippet).
+    // Intercept the native paste event and require confirm.
+    const pasteHandler = (event: ClipboardEvent) => {
+      const text = event.clipboardData?.getData('text') ?? ''
+      const newlineCount = (text.match(/\n/g) ?? []).length
+      // Trailing newline (one terminating LF) is harmless;
+      // 2+ newlines = multi-command paste = danger.
+      if (newlineCount >= 2) {
+        const ok = window.confirm(
+          `Paste ${newlineCount + 1} lines? Each newline executes immediately.`,
+        )
+        if (!ok) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+      }
+    }
+    container.addEventListener('paste', pasteHandler, true)
+
     termRef.current = term
     fitRef.current = fit
 
@@ -191,6 +229,7 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
     return () => {
       unsubscribe()
       observer.disconnect()
+      container.removeEventListener('paste', pasteHandler, true)
       if (pendingResizeRef.current !== null) {
         cancelAnimationFrame(pendingResizeRef.current)
       }
