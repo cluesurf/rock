@@ -5,14 +5,13 @@
 <br/>
 <br/>
 
-<!--
 <p align='center'>
-  <img src='https://github.com/cluesurf/rock/blob/make/view/rock.svg?raw=true' height='256'/>
-</p> -->
+  <img src='https://github.com/cluesurf/rock/blob/make/view/rock.png?raw=true' height='256'/>
+</p>
 
 <h3 align='center'>@cluesurf/rock</h3>
 <p align='center'>
-  A Hackable Terminal 𐌎
+  A Hackable Terminal ⊡
 </p>
 
 <br/>
@@ -27,15 +26,15 @@ xterm.js rendering, layout splits, sidebar tree, SQLite session
 persistence) so a consumer can focus on workspace UX, custom slab
 content, and orchestration.
 
-The public v1 API is intentionally narrow. A workspace is a named map
-of slabs. Layouts are written in JSX. Sidebars are written in JSX. No
-graph DSL, no plugin runtime to learn first. Compose like a normal
-React app with terminal slabs as components.
+The public v1 API is intentionally narrow. A workspace is a named map of
+slabs. Layouts are written in JSX. Sidebars are written in JSX. No graph
+DSL, no plugin runtime to learn first. Compose like a normal React app
+with terminal slabs as components.
 
 The internal model is richer (stable slab IDs, IPC protocol, status
-events, persistent store) so that more advanced workspace
-orchestration, auto-discovery, plugins, and a daemon can be layered in
-later without reshaping the public API.
+events, persistent store) so that more advanced workspace orchestration,
+auto-discovery, plugins, and a daemon can be layered in later without
+reshaping the public API.
 
 A consumer ships a `.rock/` folder at the project root containing
 `workspace.ts`, `layout.tsx`, `sidebar.tsx`, etc. The runtime loads
@@ -47,29 +46,29 @@ Electron.
 Four layers, separated so the wrong runtime never imports the wrong
 code.
 
-| Layer                            | Module                       | Runtime  |
-| -------------------------------- | ---------------------------- | -------- |
-| Pure types + IPC protocol        | `@cluesurf/rock/base/*`      | any      |
-| node-pty manager + SQLite store  | `@cluesurf/rock/node/*`      | Node     |
-| React components + Zustand store | `@cluesurf/rock/react/*`     | browser  |
-| Electron IPC bridge helpers      | `@cluesurf/rock/electron/*`  | Electron |
+| Layer                            | Module                     | Runtime  |
+| -------------------------------- | -------------------------- | -------- |
+| Pure types + IPC protocol        | `@cluesurf/rock/base/*`    | any      |
+| node-pty manager + SQLite store  | `@cluesurf/rock/node/*`    | Node     |
+| React components + Zustand store | `@cluesurf/rock/face/*`    | browser  |
+| Electron IPC bridge helpers      | `@cluesurf/rock/desktop/*` | Electron |
 
-| Concept           | Where                                                     |
-| ----------------- | --------------------------------------------------------- |
-| Slab lifecycle    | `code/node/terminal-manager.ts`                           |
-| IPC protocol      | `code/base/protocol.ts`                                   |
-| Workspace compile | `code/base/compile-workspace.ts`                          |
-| Persistence       | `code/node/workspace-store.ts`                            |
-| `.rock/` loader   | `code/node/rock-folder.ts`                                |
-| JSX layout        | `code/react/layout-components.tsx` (`<Split>`, `<Slab>`)  |
-| JSX sidebar       | `code/react/sidebar-components.tsx` (`<SidebarSection>`, `<SlabButton>`) |
-| Renderer slab     | `code/react/terminal-slab.tsx` (xterm.js wrapper)         |
-| Preload bridge    | `code/electron/preload-api.ts`                            |
-| Main handler      | `code/electron/main-handler.ts`                           |
+| Concept           | Where                                                                   |
+| ----------------- | ----------------------------------------------------------------------- |
+| Slab lifecycle    | `code/node/terminal-manager.ts`                                         |
+| IPC protocol      | `code/base/protocol.ts`                                                 |
+| Workspace compile | `code/base/compile-workspace.ts`                                        |
+| Persistence       | `code/node/workspace-store.ts`                                          |
+| `.rock/` loader   | `code/node/rock-folder.ts`                                              |
+| JSX layout        | `code/face/layout-components.tsx` (`<Split>`, `<Slab>`)                 |
+| JSX sidebar       | `code/face/sidebar-components.tsx` (`<SidebarSection>`, `<SlabButton>`) |
+| Renderer slab     | `code/face/terminal-slab.tsx` (xterm.js wrapper)                        |
+| Preload bridge    | `code/desktop/preload-api.ts`                                           |
+| Main handler      | `code/desktop/main-handler.ts`                                          |
 
 Slab records carry stable IDs. Symbolic slab names from the user's
-workspace map to those IDs at compile time. JSX components reference
-the symbolic name (`<Slab name="web" />`), the store does the lookup.
+workspace map to those IDs at compile time. JSX components reference the
+symbolic name (`<Slab name="web" />`), the store does the lookup.
 
 The React layer never imports node-pty. node-pty never imports React.
 Electron IPC is the membrane between them.
@@ -99,7 +98,7 @@ import { TerminalManager } from '@cluesurf/rock/node/terminal-manager'
 import {
   wireTerminalMain,
   createWindowEmitter,
-} from '@cluesurf/rock/electron/main-handler'
+} from '@cluesurf/rock/desktop/main-handler'
 
 let win: BrowserWindow | null = null
 
@@ -120,7 +119,9 @@ app.whenReady().then(() => {
       sandbox: false,
     },
   })
-  win.loadURL(process.env.DEV_SERVER_URL ?? `file://${__dirname}/index.html`)
+  win.loadURL(
+    process.env.DEV_SERVER_URL ?? `file://${__dirname}/index.html`,
+  )
 })
 
 app.on('before-quit', () => manager.shutdown())
@@ -129,7 +130,7 @@ app.on('before-quit', () => manager.shutdown())
 ### `boot/preload.ts`
 
 ```ts
-import { exposeTerminalApi } from '@cluesurf/rock/electron/preload-api'
+import { exposeTerminalApi } from '@cluesurf/rock/desktop/preload-api'
 
 exposeTerminalApi()
 ```
@@ -144,7 +145,7 @@ import {
   SidebarTree,
   WorkspaceView,
   useTerminalStore,
-} from '@cluesurf/rock/react'
+} from '@cluesurf/rock/face'
 
 const api = (window as any).app.terminal
 
@@ -188,12 +189,12 @@ export default defineWorkspace({
 ## JSX Layout
 
 Compose layouts in React. No custom AST, no DSL. `<Split>` is a flex
-container; `<Slab>` resolves a symbolic name to its compiled slab ID
-and renders an xterm.js terminal.
+container; `<Slab>` resolves a symbolic name to its compiled slab ID and
+renders an xterm.js terminal.
 
 ```tsx
 // .rock/layout.tsx
-import { Split, Slab } from '@cluesurf/rock/react'
+import { Split, Slab } from '@cluesurf/rock/face'
 
 export default function Layout() {
   return (
@@ -212,7 +213,7 @@ export default function Layout() {
 
 ```tsx
 // .rock/sidebar.tsx
-import { SidebarSection, SlabButton } from '@cluesurf/rock/react'
+import { SidebarSection, SlabButton } from '@cluesurf/rock/face'
 
 export default function Sidebar() {
   return (
@@ -255,8 +256,8 @@ project/.rock/           per-project workspace
   theme.ts               theme overrides
 ```
 
-The runtime walks upward from cwd to find the nearest project
-`.rock/`, merges with `~/.rock/`, returns the resolved configuration.
+The runtime walks upward from cwd to find the nearest project `.rock/`,
+merges with `~/.rock/`, returns the resolved configuration.
 
 ```ts
 import {

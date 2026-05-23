@@ -9,7 +9,7 @@ import { useTerminalStore } from './use-terminal-store'
  * compose any UI tree. No custom DSL, no AST builders.
  *
  *     // .term/layout.tsx
- *     import { Split, Slab } from '@cluesurf/rock/react'
+ *     import { Split, Slab } from '@cluesurf/rock/face'
  *
  *     export default function Layout() {
  *       return (

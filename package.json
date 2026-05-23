@@ -12,18 +12,50 @@
       "types": "./host/index.d.ts",
       "default": "./host/index.js"
     },
-    "./*": {
-      "types": "./host/*.d.ts",
-      "default": "./host/*.js"
+    "./base": {
+      "types": "./host/base/index.d.ts",
+      "default": "./host/base/index.js"
+    },
+    "./base/*": {
+      "types": "./host/base/*.d.ts",
+      "default": "./host/base/*.js"
+    },
+    "./node": {
+      "types": "./host/node/index.d.ts",
+      "default": "./host/node/index.js"
+    },
+    "./node/*": {
+      "types": "./host/node/*.d.ts",
+      "default": "./host/node/*.js"
+    },
+    "./face": {
+      "types": "./host/face/index.d.ts",
+      "default": "./host/face/index.js"
+    },
+    "./face/*": {
+      "types": "./host/face/*.d.ts",
+      "default": "./host/face/*.js"
+    },
+    "./desktop": {
+      "types": "./host/desktop/index.d.ts",
+      "default": "./host/desktop/index.js"
+    },
+    "./desktop/*": {
+      "types": "./host/desktop/*.d.ts",
+      "default": "./host/desktop/*.js"
     }
   },
   "files": ["host"],
   "scripts": {
-    "make": "rm -rf host && tsc && tsc-alias",
-    "scan": "concurrently --kill-others \"tsc -w\" \"tsc-alias -w\"",
+    "make": "rm -rf host && tsc && tsc-alias --resolve-full-paths",
+    "scan": "concurrently --kill-others \"tsc -w\" \"tsc-alias --resolve-full-paths -w\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint --ext .ts,.tsx ./code --fix"
+    "lint": "eslint --ext .ts,.tsx ./code --fix",
+    "dev": "pnpm --filter @cluesurf/rock-demo dev",
+    "build": "pnpm --filter @cluesurf/rock-demo build",
+    "start": "pnpm --filter @cluesurf/rock-demo start",
+    "demo:install": "pnpm --filter @cluesurf/rock-demo install"
   },
   "peerDependencies": {
     "@xterm/addon-fit": "^0.10.0",

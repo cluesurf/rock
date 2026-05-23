@@ -46,11 +46,24 @@ export function wireTerminalMain(input: WireTerminalMainInput): void {
 /**
  * Build the event emitter callback for a given BrowserWindow.
  * Pass the result as `emit` to the TerminalManager.
+ *
+ * Guards against the window being destroyed before send.
+ * PTYs keep emitting data for a moment after window close,
+ * and `webContents.send` on a destroyed window throws
+ * "Object has been destroyed" as an uncaught exception.
  */
 export function createWindowEmitter(
   getWindow: () => BrowserWindow | null,
 ): (event: TerminalEvent) => void {
   return event => {
-    getWindow()?.webContents.send(TERMINAL_EVENT_CHANNEL, event)
+    const win = getWindow()
+    if (!win || win.isDestroyed()) return
+    try {
+      const contents = win.webContents
+      if (contents.isDestroyed()) return
+      contents.send(TERMINAL_EVENT_CHANNEL, event)
+    } catch {
+      // Window or webContents disposed mid-send. Ignore.
+    }
   }
 }

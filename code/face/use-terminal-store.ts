@@ -10,11 +10,18 @@ export type TerminalState = {
   api: TerminalApi | null
   workspaces: Workspace[]
   slabs: Record<ID, Slab>
+  /**
+   * Map from symbolic slab name (as written in
+   * `.rock/workspace.ts` and referenced from JSX
+   * layout + sidebar) to the compiled slab ID.
+   */
+  slabIdByName: Record<string, ID>
   activeWorkspaceId?: ID
   activeTabId?: ID
   activeSlabId?: ID
 
   setApi(api: TerminalApi): void
+  setSlabMap(map: Record<string, ID>): void
   request<T = unknown>(request: TerminalRequest): Promise<T>
   createSlab(
     request: TerminalRequest & { type: 'slab:create' },
@@ -32,9 +39,14 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   api: null,
   workspaces: [],
   slabs: {},
+  slabIdByName: {},
 
   setApi(api) {
     set({ api })
+  },
+
+  setSlabMap(map) {
+    set({ slabIdByName: map })
   },
 
   async request<T>(request: TerminalRequest): Promise<T> {

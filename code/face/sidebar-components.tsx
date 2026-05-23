@@ -5,7 +5,7 @@ import { useTerminalStore } from './use-terminal-store'
  * JSX sidebar primitives for `.rock/sidebar.tsx`.
  *
  *     // .term/sidebar.tsx
- *     import { SidebarSection, SlabButton } from '@cluesurf/rock/react'
+ *     import { SidebarSection, SlabButton } from '@cluesurf/rock/face'
  *
  *     export default function Sidebar() {
  *       return (

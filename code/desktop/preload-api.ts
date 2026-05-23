@@ -6,7 +6,7 @@ import {
   type TerminalRequest,
   type TerminalResponse,
 } from '@/base/protocol'
-import type { TerminalApi } from '@/react/terminal-api'
+import type { TerminalApi } from '@/face/terminal-api'
 
 /**
  * Build the TerminalApi object that bridges the renderer
@@ -34,7 +34,7 @@ export function makeTerminalApi(): TerminalApi {
  * One-line preload setup. Exposes the API as
  * `window.app.terminal` in the renderer.
  *
- *     import { exposeTerminalApi } from '@cluesurf/rock/electron/preload-api'
+ *     import { exposeTerminalApi } from '@cluesurf/rock/desktop/preload-api'
  *     exposeTerminalApi()
  *
  * Use `makeTerminalApi()` directly if you want to attach
