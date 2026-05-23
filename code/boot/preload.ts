@@ -65,6 +65,32 @@ const api = {
   async getUserBundles(): Promise<string[]> {
     return await ipcRenderer.invoke('rock:get-user-bundles')
   },
+  async newSlab(opts: {
+    name?: string
+    program?: string
+    cwd?: string
+    command?: string
+  } = {}): Promise<{ name: string; id: string }> {
+    return await ipcRenderer.invoke('rock:new-slab', opts)
+  },
+  async openExternal(url: string): Promise<void> {
+    return await ipcRenderer.invoke('rock:open-external', url)
+  },
+  async openPath(filePath: string): Promise<string> {
+    return await ipcRenderer.invoke('rock:open-path', filePath)
+  },
+  async notifyCwd(slabId: string, cwd: string): Promise<void> {
+    await ipcRenderer.invoke('rock:cwd-change', { slabId, cwd })
+  },
+  async renameSlab(name: string, label: string): Promise<void> {
+    await ipcRenderer.invoke('rock:rename-slab', { name, label })
+  },
+  async getTree(): Promise<unknown> {
+    return await ipcRenderer.invoke('rock:get-tree')
+  },
+  async saveTree(tree: unknown): Promise<void> {
+    await ipcRenderer.invoke('rock:save-tree', tree)
+  },
 }
 
 contextBridge.exposeInMainWorld('app', api)

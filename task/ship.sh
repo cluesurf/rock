@@ -56,6 +56,25 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BASE="$ROOT/base"
 DIST="$BASE/dist"
 
+# Progress logger: prints a timestamped step header so any
+# hang in the pipeline is obvious. Run via `step "label"`.
+step() {
+  printf "\n── %s  [%s]\n" "$1" "$(date '+%H:%M:%S')"
+}
+
+# curl with sane timeouts. Large .dmg uploads can take
+# minutes on slow connections, so the hard timeout is 30
+# minutes. Stall detection kicks in if throughput drops
+# below 1KB/s for 30 seconds — that's a real hang, fail
+# fast. --connect-timeout 10 keeps initial connect snappy.
+ghcurl() {
+  curl --max-time 1800 \
+       --connect-timeout 10 \
+       --speed-time 30 \
+       --speed-limit 1024 \
+       "$@"
+}
+
 # Load rock/.env into the shell environment. The file is
 # parsed as KEY=value lines (the common dotenv shape).
 # Lines starting with # are ignored. Values can be quoted
@@ -88,7 +107,7 @@ echo "── ship Rock.app $TAG ──"
 echo "repo:    $REPO"
 echo "tap:     $TAP_REPO  ($TAP_DIR)"
 
-# ── Sanity checks ────────────────────────────────────────
+step "verify token"
 TOKEN="${GITHUB_REPO_TOKEN:-}"
 if [ -z "$TOKEN" ]; then
   echo "ERROR: GITHUB_REPO_TOKEN missing." >&2
@@ -99,7 +118,7 @@ if [ -z "$TOKEN" ]; then
 fi
 
 # Quick token check via /user (works for any repo-scoped PAT).
-HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+HTTP_CODE=$(ghcurl -s -o /dev/null -w '%{http_code}' \
   -H "Authorization: Bearer $TOKEN" \
   -H "Accept: application/vnd.github+json" \
   "$API/user")
@@ -111,8 +130,7 @@ fi
 
 # ── Build ────────────────────────────────────────────────
 if [ "${ROCK_SKIP_BUILD:-0}" != "1" ]; then
-  echo
-  echo "── build ──"
+  step "build Rock.app (this is slow — 30s+ for electron-builder)"
   (cd "$ROOT" && pnpm package:mac)
 fi
 
@@ -144,8 +162,7 @@ echo "sha256: $SHA256"
 
 # ── GitHub Release ───────────────────────────────────────
 if [ "${ROCK_SKIP_RELEASE:-0}" != "1" ]; then
-  echo
-  echo "── github release ──"
+  step "github release"
 
   # Push the git tag if absent.
   if ! git -C "$ROOT" rev-parse "$TAG" >/dev/null 2>&1; then
@@ -154,7 +171,7 @@ if [ "${ROCK_SKIP_RELEASE:-0}" != "1" ]; then
   fi
 
   # Look up or create the release.
-  RELEASE_JSON="$(curl -s \
+  RELEASE_JSON="$(ghcurl -s \
     -H "Authorization: Bearer $TOKEN" \
     -H "Accept: application/vnd.github+json" \
     "$API/repos/$REPO/releases/tags/$TAG")"
@@ -172,7 +189,7 @@ if [ "${ROCK_SKIP_RELEASE:-0}" != "1" ]; then
       draft: false,
       prerelease: false
     }))")
-    RELEASE_JSON="$(curl -s -X POST \
+    RELEASE_JSON="$(ghcurl -s -X POST \
       -H "Authorization: Bearer $TOKEN" \
       -H "Accept: application/vnd.github+json" \
       -d "$BODY" \
@@ -195,7 +212,7 @@ if [ "${ROCK_SKIP_RELEASE:-0}" != "1" ]; then
 
     # Delete existing asset with the same name, if any.
     local assets_json
-    assets_json="$(curl -s \
+    assets_json="$(ghcurl -s \
       -H "Authorization: Bearer $TOKEN" \
       -H "Accept: application/vnd.github+json" \
       "$API/repos/$REPO/releases/$RELEASE_ID/assets")"
@@ -206,13 +223,17 @@ if [ "${ROCK_SKIP_RELEASE:-0}" != "1" ]; then
       console.log(found ? found.id : '')
     " "$assets_json" "$name")"
     if [ -n "$existing_id" ]; then
-      curl -s -X DELETE \
+      ghcurl -s -X DELETE \
         -H "Authorization: Bearer $TOKEN" \
         "$API/repos/$REPO/releases/assets/$existing_id" >/dev/null
     fi
 
-    echo "  uploading $name ($mime)"
-    curl -s -X POST \
+    local size_mb; size_mb="$(du -m "$file" | cut -f1)"
+    echo "  uploading $name (${size_mb} MB, $mime)"
+    # --progress-bar shows a live progress bar so the user
+    # sees the upload moving instead of staring at a frozen
+    # line. ghcurl handles the timeouts.
+    ghcurl --progress-bar --no-buffer -X POST \
       -H "Authorization: Bearer $TOKEN" \
       -H "Content-Type: $mime" \
       --data-binary "@$file" \
@@ -228,8 +249,7 @@ fi
 
 # ── Homebrew cask update ─────────────────────────────────
 if [ "${ROCK_SKIP_CASK:-0}" != "1" ]; then
-  echo
-  echo "── homebrew cask ──"
+  step "update homebrew cask"
 
   # Clone or refresh the tap. Use the PAT for both clone
   # and push so no credential helper is touched.
@@ -256,10 +276,15 @@ if [ "${ROCK_SKIP_CASK:-0}" != "1" ]; then
   ZIP_URL="https://github.com/$REPO/releases/download/$TAG/$ZIP_BASENAME"
 
   TMP="$(mktemp)"
+  # Match `version|sha256|url` at the start of a directive
+  # regardless of value format. Handles both `sha256 "..."`
+  # and `sha256 :no_check` (Ruby symbol). The substitution
+  # always writes the quoted-string form so future runs are
+  # consistent.
   awk -v ver="$VERSION" -v sha="$SHA256" -v url="$ZIP_URL" '
-    /version "/   { sub(/version ".*"/, "version \"" ver "\""); print; next }
-    /sha256 "/    { sub(/sha256 ".*"/, "sha256 \"" sha "\""); print; next }
-    /url "/       { sub(/url ".*"/, "url \"" url "\""); print; next }
+    /^[[:space:]]*version[[:space:]]/ { sub(/version[[:space:]].*$/, "version \"" ver "\""); print; next }
+    /^[[:space:]]*sha256[[:space:]]/  { sub(/sha256[[:space:]].*$/,  "sha256 \""  sha "\""); print; next }
+    /^[[:space:]]*url[[:space:]]/     { sub(/url[[:space:]].*$/,     "url \""     url "\""); print; next }
     { print }
   ' "$CASK" > "$TMP"
   mv "$TMP" "$CASK"

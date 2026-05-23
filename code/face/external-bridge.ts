@@ -61,24 +61,37 @@ export function extendExternalBridge(
 
 /**
  * Dynamically load a JIT-bundled user module served by
- * the rock:// protocol. Returns the default export.
+ * the rock:// protocol. Returns the DEFAULT export.
  *
- *     const Layout = await loadUserModule('layout.js')
- *     return <Layout />
+ *     const exported = await loadUserModule<{ Layout?: ... }>('app.js')
  *
- * Throws if the bundle is missing or fails to parse.
+ * Throws if the bundle is missing.
  */
 export async function loadUserModule<T = unknown>(
   bundleKey: string,
 ): Promise<T> {
   const url = `rock://user/${bundleKey}`
   const mod = (await import(/* @vite-ignore */ url)) as {
-    default: T
+    default?: T
   }
-  if (!mod.default) {
+  if (mod.default === undefined) {
     throw new Error(
       `rock://user/${bundleKey} has no default export`,
     )
   }
   return mod.default
+}
+
+/**
+ * Load a JIT-bundled module and return the full namespace
+ * (so callers can read multiple named exports).
+ *
+ *     const ns = await loadUserNamespace('app.js')
+ *     const { Layout, Sidebar, commands } = ns
+ */
+export async function loadUserNamespace<T = unknown>(
+  bundleKey: string,
+): Promise<T> {
+  const url = `rock://user/${bundleKey}`
+  return (await import(/* @vite-ignore */ url)) as T
 }

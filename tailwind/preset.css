@@ -1,7 +1,23 @@
 /*
  * @cluesurf/rock — Tailwind preset
  *
- * Optional defaults for rock's data-attribute hooks.
+ * Optional defaults for rock's data-attribute hooks. All
+ * colors read from CSS custom properties set by the Slab
+ * component, so chrome follows whatever RockTheme the user
+ * passes. Fallbacks are zinc-based so a theme-less Slab
+ * still looks reasonable.
+ *
+ * Variables (set on `[data-rock-slab]` by Slab):
+ *   --rock-bg            window / sidebar background
+ *   --rock-fg            primary text
+ *   --rock-muted         secondary / label text
+ *   --rock-border        dividers + outlines
+ *   --rock-active-bg     selected / pressed states
+ *   --rock-hover-bg      hover background
+ *   --rock-accent        focus rings, active highlights
+ *   --rock-font          monospace font stack
+ *   --rock-status-*      running / exited / failed / starting / idle
+ *
  * Import after `@import "tailwindcss"`:
  *
  *   @import "tailwindcss";
@@ -26,46 +42,66 @@
   /* ── Slab ──────────────────────────────────────── */
 
   [data-rock-slab] {
-    @apply flex flex-col w-full h-full overflow-hidden
-           bg-neutral-950 border border-neutral-800 rounded-md;
+    @apply flex flex-col w-full h-full overflow-hidden;
+    background: var(--rock-bg, #09090b);
+    color: var(--rock-fg, #e4e4e7);
+    font-family: var(--rock-font, ui-monospace, SFMono-Regular, monospace);
   }
   [data-rock-slab-header] {
     @apply flex items-center gap-2 px-3 py-1.5
-           bg-neutral-900 border-b border-neutral-800
-           text-xs uppercase tracking-wider text-neutral-400
-           select-none;
+           text-xs uppercase tracking-wider select-none;
+    background: var(--rock-bg, #09090b);
+    color: var(--rock-muted, #71717a);
+    border-bottom: 1px solid var(--rock-border, #27272a);
   }
   [data-rock-slab-dot] {
     @apply text-[10px] leading-none;
   }
-  [data-rock-slab-dot][data-ready='true']  { @apply text-emerald-500; }
-  [data-rock-slab-dot][data-ready='false'] { @apply text-neutral-600; }
-  [data-rock-slab-name] { @apply text-neutral-300; }
-  [data-rock-slab-body] { @apply flex-1 min-h-0 min-w-0 bg-black; }
+  [data-rock-slab-dot][data-ready='true'] {
+    color: var(--rock-status-running, #10b981);
+  }
+  [data-rock-slab-dot][data-ready='false'] {
+    color: var(--rock-status-idle, #71717a);
+  }
+  [data-rock-slab-name] { color: var(--rock-fg, #e4e4e7); }
+  [data-rock-slab-body] {
+    @apply flex-1 min-h-0 min-w-0;
+    background: var(--rock-bg, #09090b);
+  }
 
   /* ── Dock ──────────────────────────────────────── */
 
-  [data-rock-dock] { @apply w-full h-full bg-black; }
+  [data-rock-dock] {
+    @apply w-full h-full;
+    background: var(--rock-bg, #09090b);
+  }
   [data-rock-dock-canvas] { @apply w-full h-full p-2; }
 
   /* ── Tree ──────────────────────────────────────── */
 
   [data-rock-tree] {
-    @apply flex flex-col gap-1 p-2 text-sm text-neutral-300 overflow-auto;
+    @apply flex flex-col gap-1 p-2 text-sm overflow-auto;
+    color: var(--rock-fg, #e4e4e7);
   }
   [data-rock-branch] {
     @apply flex flex-col;
   }
   [data-rock-branch-header] {
     @apply flex items-center gap-1 w-full px-2 py-1
-           text-xs uppercase tracking-wider text-neutral-500
-           hover:text-neutral-300 cursor-pointer select-none
-           bg-transparent border-0 text-left;
+           text-xs uppercase tracking-wider
+           cursor-pointer select-none bg-transparent border-0 text-left;
+    color: var(--rock-muted, #71717a);
+    transition: color 120ms;
+  }
+  [data-rock-branch-header]:hover {
+    color: var(--rock-fg, #e4e4e7);
   }
   [data-rock-branch-caret] {
-    @apply text-[8px] text-neutral-600 w-3;
+    @apply text-[8px] w-3;
+    color: var(--rock-muted, #71717a);
+    opacity: 0.6;
   }
-  [data-rock-branch-icon] { @apply text-neutral-500; }
+  [data-rock-branch-icon] { color: var(--rock-muted, #71717a); }
   [data-rock-branch-label] { @apply flex-1; }
   [data-rock-branch-actions] { @apply ml-auto opacity-0 group-hover:opacity-100; }
   [data-rock-branch-children] {
@@ -74,34 +110,124 @@
 
   [data-rock-leaf] {
     @apply flex items-center gap-2 w-full px-2 py-1 rounded
-           text-sm text-neutral-400 text-left bg-transparent border-0
-           cursor-pointer
-           hover:bg-neutral-900 hover:text-neutral-100;
+           text-sm text-left bg-transparent border-0 cursor-pointer
+           select-none;
+    color: var(--rock-muted, #71717a);
+    transition: background-color 100ms, color 100ms;
+  }
+  [data-rock-tree] { user-select: none; -webkit-user-select: none; }
+  [data-rock-leaf]:hover {
+    background: var(--rock-hover-bg, rgba(39, 39, 42, 0.5));
+    color: var(--rock-fg, #e4e4e7);
   }
   [data-rock-leaf][data-active='true'] {
-    @apply bg-neutral-800 text-white;
+    background: var(--rock-active-bg, #27272a);
+    color: var(--rock-fg, #e4e4e7);
   }
   [data-rock-leaf-dot] {
     @apply text-[10px] leading-none;
   }
-  [data-rock-leaf-dot][data-status='running']  { @apply text-emerald-500; }
-  [data-rock-leaf-dot][data-status='exited']   { @apply text-neutral-500; }
-  [data-rock-leaf-dot][data-status='failed']   { @apply text-red-500; }
-  [data-rock-leaf-dot][data-status='starting'] { @apply text-yellow-500; }
-  [data-rock-leaf-dot][data-status='idle']     { @apply text-neutral-700; }
-  [data-rock-leaf-icon] { @apply text-neutral-400; }
+  [data-rock-leaf-dot][data-status='running']  { color: var(--rock-status-running, #10b981); }
+  [data-rock-leaf-dot][data-status='exited']   { color: var(--rock-status-exited, #71717a); }
+  [data-rock-leaf-dot][data-status='failed']   { color: var(--rock-status-failed, #f43f5e); }
+  [data-rock-leaf-dot][data-status='starting'] { color: var(--rock-status-starting, #eab308); }
+  [data-rock-leaf-dot][data-status='idle']     { color: var(--rock-status-idle, #71717a); }
+  [data-rock-leaf-icon] { color: var(--rock-muted, #71717a); }
   [data-rock-leaf-label] { @apply flex-1 truncate; }
   [data-rock-leaf-actions] { @apply ml-auto; }
+
+  /* TreeView — Phase 1 visual states. */
+  [data-rock-leaf][data-focused='true']:not([data-active='true']) {
+    box-shadow: inset 0 0 0 1px var(--rock-accent, #8b5cf6);
+  }
+  [data-rock-branch][data-focused='true'] > [data-rock-branch-header] {
+    box-shadow: inset 0 0 0 1px var(--rock-accent, #8b5cf6);
+  }
+
+  /* Cursor affordance — grab when hovered, grabbing while
+     actively dragged. dnd-kit sets the latter via inline
+     style; we set the former here so it's always visible. */
+  [data-rock-leaf],
+  [data-rock-branch-header] {
+    cursor: grab;
+  }
+
+  /* Source row while being dragged — fade so the user
+     reads it as "in motion" and the destination indicator
+     stands out. dnd-kit sets data-dragging on the rendered
+     placeholder; the DragOverlay handles the actual ghost. */
+  [data-rock-leaf][data-dragging='true'],
+  [data-rock-branch][data-dragging='true'] > [data-rock-branch-header] {
+    opacity: 0.35;
+  }
+
+  /* Drop indicators. Use ::before / ::after pseudos so
+     they don't shift layout. Bars are full-width, 2px
+     tall, accent-colored, with a small dot on the leading
+     edge for visual punch. */
+  [data-rock-leaf],
+  [data-rock-branch] > [data-rock-branch-header] {
+    position: relative;
+  }
+  [data-rock-leaf][data-drop='before']::before,
+  [data-rock-branch][data-drop='before'] > [data-rock-branch-header]::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--rock-accent, #8b5cf6);
+    border-radius: 2px;
+    pointer-events: none;
+    box-shadow: 0 0 0 1px var(--rock-bg, #09090b);
+  }
+  [data-rock-leaf][data-drop='after']::after,
+  [data-rock-branch][data-drop='after'] > [data-rock-branch-header]::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--rock-accent, #8b5cf6);
+    border-radius: 2px;
+    pointer-events: none;
+    box-shadow: 0 0 0 1px var(--rock-bg, #09090b);
+  }
+  /* "Inside" drop = drop INTO a group. Full-row tint +
+     accent ring so it's unmistakable. */
+  [data-rock-branch][data-drop='inside'] > [data-rock-branch-header] {
+    background: color-mix(in srgb, var(--rock-accent, #8b5cf6) 18%, transparent);
+    box-shadow: inset 0 0 0 1px var(--rock-accent, #8b5cf6);
+  }
+  /* Group child count / running badge. */
+  [data-rock-branch-count] {
+    @apply ml-auto text-[10px] tabular-nums;
+    color: var(--rock-muted, #71717a);
+    padding-left: 6px;
+  }
+  /* In-place rename input. Matches the row's box exactly
+     (no margin, full width, accent ring inset). */
+  [data-rock-rename] {
+    @apply block w-full py-1 pr-2 text-sm outline-none border-0 m-0;
+    background: var(--rock-active-bg, #3f3f46);
+    color: var(--rock-fg, #e4e4e7);
+    box-shadow: inset 0 0 0 1px var(--rock-accent, #8b5cf6);
+    font-family: inherit;
+  }
 
   /* ── Bar / Cell ────────────────────────────────── */
 
   [data-rock-bar] {
-    @apply flex items-center gap-3 w-full px-3 py-1
-           bg-neutral-900 border-t border-neutral-800
-           text-xs text-neutral-400 select-none;
+    @apply flex items-center gap-3 w-full px-3 py-1 text-xs select-none;
+    background: var(--rock-bg, #09090b);
+    color: var(--rock-muted, #71717a);
+    border-top: 1px solid var(--rock-border, #27272a);
   }
   [data-rock-bar][data-position='top'] {
-    @apply border-t-0 border-b;
+    border-top: 0;
+    border-bottom: 1px solid var(--rock-border, #27272a);
   }
   [data-rock-cell] { @apply flex items-center; }
   [data-rock-cell][data-align='center'] { @apply justify-center mx-auto; }
@@ -110,43 +236,52 @@
   /* ── Sheet ─────────────────────────────────────── */
 
   [data-rock-sheet] {
-    @apply fixed inset-0 z-50 flex items-start justify-center
-           pt-24 bg-black/60 backdrop-blur-sm;
+    @apply fixed inset-0 z-50 flex items-start justify-center pt-24
+           backdrop-blur-sm;
+    background: rgba(0, 0, 0, 0.6);
   }
   [data-rock-sheet-modal] {
-    @apply w-full max-w-xl rounded-lg overflow-hidden
-           bg-neutral-900 border border-neutral-800 shadow-2xl;
+    @apply w-full max-w-xl rounded-lg overflow-hidden shadow-2xl;
+    background: var(--rock-bg, #09090b);
+    border: 1px solid var(--rock-border, #27272a);
   }
 
   /* ── Palette ───────────────────────────────────── */
 
   [data-rock-palette] { @apply flex flex-col; }
   [data-rock-palette-input] {
-    @apply w-full px-4 py-3 bg-transparent border-0 border-b border-neutral-800
-           text-base text-neutral-100 placeholder-neutral-500
-           outline-none;
+    @apply w-full px-4 py-3 bg-transparent border-0 text-base outline-none;
+    color: var(--rock-fg, #e4e4e7);
+    border-bottom: 1px solid var(--rock-border, #27272a);
+  }
+  [data-rock-palette-input]::placeholder {
+    color: var(--rock-muted, #71717a);
   }
   [data-rock-palette-list] {
     @apply flex flex-col max-h-96 overflow-auto py-1;
   }
   [data-rock-palette-empty] {
-    @apply px-4 py-3 text-sm text-neutral-500;
+    @apply px-4 py-3 text-sm;
+    color: var(--rock-muted, #71717a);
   }
   [data-rock-palette-item] {
-    @apply flex items-center gap-2 px-4 py-2 cursor-pointer
-           text-sm text-neutral-300;
+    @apply flex items-center gap-2 px-4 py-2 cursor-pointer text-sm;
+    color: var(--rock-fg, #e4e4e7);
   }
   [data-rock-palette-item][data-selected='true'] {
-    @apply bg-neutral-800 text-white;
+    background: var(--rock-active-bg, #27272a);
   }
-  [data-rock-palette-item-icon] { @apply text-neutral-500; }
+  [data-rock-palette-item-icon] { color: var(--rock-muted, #71717a); }
   [data-rock-palette-item-label] { @apply flex-1 truncate; }
   [data-rock-palette-item-group] {
-    @apply ml-2 text-xs text-neutral-500;
+    @apply ml-2 text-xs;
+    color: var(--rock-muted, #71717a);
   }
   [data-rock-palette-item-hotkey] {
-    @apply ml-auto text-xs font-mono text-neutral-500
-           bg-neutral-800 px-1.5 py-0.5 rounded;
+    @apply ml-auto text-xs px-1.5 py-0.5 rounded;
+    color: var(--rock-muted, #71717a);
+    background: var(--rock-active-bg, #27272a);
+    font-family: var(--rock-font, ui-monospace, monospace);
   }
 
   /* ── Toast ─────────────────────────────────────── */
@@ -155,22 +290,35 @@
     @apply fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm;
   }
   [data-rock-toast] {
-    @apply flex items-center gap-2 px-3 py-2 rounded-md
-           bg-neutral-900 border border-neutral-800 shadow-lg
-           text-sm text-neutral-200;
+    @apply flex items-center gap-2 px-3 py-2 rounded-md shadow-lg text-sm;
+    background: var(--rock-bg, #09090b);
+    color: var(--rock-fg, #e4e4e7);
+    border: 1px solid var(--rock-border, #27272a);
   }
-  [data-rock-toast][data-kind='success'] { @apply border-emerald-700/50; }
-  [data-rock-toast][data-kind='warn']    { @apply border-yellow-700/50; }
-  [data-rock-toast][data-kind='error']   { @apply border-red-700/50; }
+  [data-rock-toast][data-kind='success'] {
+    border-color: var(--rock-status-running, #10b981);
+  }
+  [data-rock-toast][data-kind='warn'] {
+    border-color: var(--rock-status-starting, #eab308);
+  }
+  [data-rock-toast][data-kind='error'] {
+    border-color: var(--rock-status-failed, #f43f5e);
+  }
   [data-rock-toast-body] { @apply flex-1; }
   [data-rock-toast-action] {
-    @apply text-xs px-2 py-1 rounded
-           bg-neutral-800 hover:bg-neutral-700
-           text-neutral-200 border-0 cursor-pointer;
+    @apply text-xs px-2 py-1 rounded cursor-pointer;
+    color: var(--rock-fg, #e4e4e7);
+    background: var(--rock-active-bg, #27272a);
+    border: 0;
+  }
+  [data-rock-toast-action]:hover {
+    background: var(--rock-hover-bg, rgba(39, 39, 42, 0.5));
   }
   [data-rock-toast-close] {
-    @apply text-neutral-500 hover:text-neutral-200
-           bg-transparent border-0 cursor-pointer
-           text-lg leading-none w-5 text-center;
+    @apply bg-transparent border-0 cursor-pointer text-lg leading-none w-5 text-center;
+    color: var(--rock-muted, #71717a);
+  }
+  [data-rock-toast-close]:hover {
+    color: var(--rock-fg, #e4e4e7);
   }
 }

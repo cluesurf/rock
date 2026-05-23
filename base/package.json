@@ -1,6 +1,6 @@
 {
   "name": "@cluesurf/rock-base",
-  "version": "0.0.0",
+  "version": "0.0.6",
   "private": true,
   "description": "Rock.app — the host shell that loads a user's .rock/ config",
   "license": "GPL-3.0-or-later",
@@ -28,6 +28,9 @@
   },
   "dependencies": {
     "@cluesurf/rock": "workspace:*",
+    "@dnd-kit/core": "^6.3.0",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-search": "^0.16.0",
     "@xterm/addon-web-links": "^0.12.0",
@@ -61,11 +64,12 @@
       "output": "dist",
       "buildResources": "code/assets"
     },
-    "files": [
-      "out/**/*",
-      "package.json"
+    "files": ["out/**/*", "package.json"],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/node-pty/**",
+      "**/node_modules/better-sqlite3/**"
     ],
-    "asar": false,
     "npmRebuild": false,
     "buildDependenciesFromSource": false,
     "mac": {

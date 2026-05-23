@@ -2,6 +2,8 @@ import { useEffect, createContext, useContext, type ReactNode } from 'react'
 import { TerminalApiProvider } from './terminal-api'
 import { TerminalEvents } from './terminal-events'
 import { useTerminalStore } from './use-terminal-store'
+import type { RockTheme } from '@/base/theme'
+export type { RockTheme }
 
 /**
  * The top-level rock instance — the whole terminal app
@@ -21,18 +23,6 @@ import { useTerminalStore } from './use-terminal-store'
  * Inside a Slab you compose Tree, Nest, Dock, Bar,
  * Palette, etc.
  */
-
-export type RockTheme = {
-  background?: string
-  foreground?: string
-  cursor?: string
-  cursorStyle?: 'block' | 'underline' | 'bar'
-  cursorBlink?: boolean
-  font?: string
-  fontSize?: number
-  lineHeight?: number
-  palette?: Record<string, string> | string
-}
 
 const ThemeContext = createContext<RockTheme | undefined>(undefined)
 
@@ -72,6 +62,12 @@ export function Slab({
     )
   }
 
+  // Project every theme color out as a CSS variable so the
+  // Tailwind preset (and any consumer CSS) can drive chrome
+  // colors from the theme. Variables are scoped to the Slab
+  // root, so multiple Slabs with different themes can coexist.
+  const cssVars = themeToCssVars(theme)
+
   return (
     <TerminalApiProvider api={w.app.terminal}>
       <TerminalEvents />
@@ -85,6 +81,7 @@ export function Slab({
             width: '100vw',
             height: '100vh',
             overflow: 'hidden',
+            ...cssVars,
           }}
         >
           {draggable && (
@@ -109,6 +106,63 @@ export function Slab({
       </ThemeContext.Provider>
     </TerminalApiProvider>
   )
+}
+
+/**
+ * Project a RockTheme into CSS custom properties. Returned
+ * object is suitable to spread into a style prop. The
+ * Tailwind preset reads these via `var(--rock-bg)` etc. so
+ * sidebar / branch / leaf chrome follows the theme.
+ *
+ * Fallbacks are sensible zinc-based values for theme-less
+ * Slabs so the chrome still renders reasonably.
+ */
+function themeToCssVars(theme?: RockTheme): React.CSSProperties {
+  // Deriving sensible defaults for the chrome from the
+  // existing color slots:
+  //   --rock-bg            theme.background   ?? zinc-950
+  //   --rock-fg            theme.foreground   ?? zinc-200
+  //   --rock-muted         theme.brightBlack  ?? zinc-500
+  //   --rock-faint         theme.brightBlack  @ 60% (use the same)
+  //   --rock-border        theme.selectionBackground ?? zinc-800
+  //   --rock-active-bg     theme.selectionBackground ?? zinc-800
+  //   --rock-hover-bg      theme.selectionBackground + alpha
+  //   --rock-accent        theme.accent       ?? violet-500
+  //   --rock-status-running   theme.green     ?? emerald-500
+  //   --rock-status-exited    theme.brightBlack ?? zinc-500
+  //   --rock-status-failed    theme.red       ?? rose-500
+  //   --rock-status-starting  theme.yellow    ?? yellow-500
+  //   --rock-status-idle      theme.brightBlack @ 50%
+  const bg = theme?.background ?? '#09090b'
+  const fg = theme?.foreground ?? '#e4e4e7'
+  const muted = theme?.brightBlack ?? '#71717a'
+  const border = theme?.selectionBackground ?? '#27272a'
+  const activeBg = border
+  const accent = theme?.accent ?? '#8b5cf6'
+  const statusRunning = theme?.green ?? '#10b981'
+  const statusExited = muted
+  const statusFailed = theme?.red ?? '#f43f5e'
+  const statusStarting = theme?.yellow ?? '#eab308'
+
+  return {
+    // The cast keeps TS happy; React's CSSProperties doesn't
+    // type custom properties.
+    ['--rock-bg' as string]: bg,
+    ['--rock-fg' as string]: fg,
+    ['--rock-muted' as string]: muted,
+    ['--rock-border' as string]: border,
+    ['--rock-active-bg' as string]: activeBg,
+    ['--rock-hover-bg' as string]: activeBg + '80',
+    ['--rock-accent' as string]: accent,
+    ['--rock-font' as string]:
+      theme?.font ??
+      'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace',
+    ['--rock-status-running' as string]: statusRunning,
+    ['--rock-status-exited' as string]: statusExited,
+    ['--rock-status-failed' as string]: statusFailed,
+    ['--rock-status-starting' as string]: statusStarting,
+    ['--rock-status-idle' as string]: muted,
+  }
 }
 
 function SlabMapBridge() {

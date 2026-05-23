@@ -18,6 +18,7 @@ import {
   dialog,
   globalShortcut,
   ipcMain,
+  shell,
   type BrowserWindowConstructorOptions,
 } from 'electron'
 import path from 'node:path'
@@ -37,10 +38,42 @@ import {
   registerRockProtocol,
   registerRockProtocolSchemes,
 } from '@/desktop/rock-protocol'
+import {
+  findProjectRockFolder,
+  loadProjectState,
+  saveProjectState,
+  type ProjectState,
+  type TabState,
+} from '@/node'
+import type { TreeNode } from '@/base/tree'
 
 // Register the rock:// scheme as privileged. Must run
 // BEFORE app.whenReady(). Side-effect at module load.
 registerRockProtocolSchemes()
+
+/**
+ * Rebuild a WorkspaceDefinition from persisted TabState[],
+ * preserving the original workspace's name + per-slab env
+ * but replacing the slabs map with the persisted list.
+ * Persisted cwds win.
+ */
+function hydrateWorkspaceFromState(
+  original: WorkspaceDefinition,
+  tabs: TabState[],
+): WorkspaceDefinition {
+  const slabs: WorkspaceDefinition['slabs'] = {}
+  for (const tab of tabs) {
+    // Reuse the original config for that name if it exists
+    // (so workspace-level program / args / command stick),
+    // otherwise spawn a default shell.
+    const base = original.slabs[tab.name] ?? {}
+    slabs[tab.name] = {
+      ...base,
+      cwd: tab.cwd ?? base.cwd,
+    }
+  }
+  return { ...original, slabs }
+}
 
 export interface BootInput {
   /** App name (shown in menu bar, dock, Cmd+Tab). */
@@ -131,8 +164,78 @@ export async function boot(input: BootInput): Promise<AppHandle> {
   app.setName(input.name)
   process.title = input.name
 
+  // Per-project persisted state — restores tabs + cwds
+  // from the last session if available. Lives at
+  // <projectRoot>/.rock/base.json. Outside any project,
+  // rockFolderPath is null and persistence is a no-op.
+  const rockFolderPath = findProjectRockFolder(process.cwd())
+  const persisted = rockFolderPath
+    ? loadProjectState(rockFolderPath)
+    : null
+  const persistedWindow = persisted?.windows?.[0]
+
+  // If we have persisted tabs, hydrate the workspace from
+  // them so spawn order + names + cwds match last session.
+  // Otherwise use the workspace the consumer passed in.
+  const effectiveWorkspace =
+    persistedWindow && persistedWindow.tabs.length > 0
+      ? hydrateWorkspaceFromState(input.workspace, persistedWindow.tabs)
+      : input.workspace
+
   // Compile workspace
-  const compiled = compileWorkspace(input.workspace)
+  const compiled = compileWorkspace(effectiveWorkspace)
+
+  // Live cwd map — slabId → last-known cwd. Initial cwd
+  // from compileWorkspace; updated by OSC 7 reports.
+  const liveCwds = new Map<string, string>()
+  for (const slab of compiled.slabs) {
+    liveCwds.set(slab.id, slab.cwd)
+  }
+  // Labels keyed by slab NAME (stable across sessions).
+  const liveLabels = new Map<string, string>()
+  for (const tab of persistedWindow?.tabs ?? []) {
+    if (tab.label) liveLabels.set(tab.name, tab.label)
+  }
+
+  // Debounced save trigger. Coalesces rapid changes
+  // (eg cwd reports during a fast cd loop) into a single
+  // file write.
+  let saveTimer: NodeJS.Timeout | null = null
+  function scheduleSave() {
+    if (!rockFolderPath) return
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(persistNow, 400)
+  }
+  function persistNow() {
+    if (!rockFolderPath) return
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+      saveTimer = null
+    }
+    const focused = BrowserWindow.getFocusedWindow()
+    const tabs: TabState[] = compiled.slabs.map(slab => ({
+      name: slab.name,
+      label: liveLabels.get(slab.name),
+      cwd: liveCwds.get(slab.id) ?? slab.cwd,
+    }))
+    const state: ProjectState = {
+      version: 1,
+      windows: [
+        {
+          tabs,
+          activeIndex: 0,
+          tree: liveTree ?? undefined,
+          position: focused
+            ? (() => {
+                const b = focused.getBounds()
+                return { x: b.x, y: b.y, width: b.width, height: b.height }
+              })()
+            : undefined,
+        },
+      ],
+    }
+    saveProjectState(rockFolderPath, state)
+  }
 
   const wins = new Set<BrowserWindow>()
   let shuttingDown = false
@@ -177,6 +280,13 @@ export async function boot(input: BootInput): Promise<AppHandle> {
   async function gracefulShutdown() {
     if (shuttingDown) return
     shuttingDown = true
+    // Flush state to .rock/base.json before we exit so the
+    // next launch can restore tabs + cwds.
+    try {
+      persistNow()
+    } catch {
+      // swallow — persistence is best-effort
+    }
     try {
       if (input.onClose) await input.onClose(handle)
     } catch {
@@ -287,7 +397,7 @@ export async function boot(input: BootInput): Promise<AppHandle> {
       minHeight: opts.minHeight,
       show: false,
       webPreferences: {
-        preload: locateAsset('preload/preload.mjs'),
+        preload: locateAsset('preload/index.mjs'),
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: false,
@@ -305,6 +415,30 @@ export async function boot(input: BootInput): Promise<AppHandle> {
         /* ignore */
       }
     }
+
+    // Any `window.open(url)` from the renderer (xterm
+    // internals, third-party addons, plain anchor clicks)
+    // should open in the user's default browser — NOT in a
+    // new Electron BrowserWindow (the "inline browser"
+    // popup). Returning 'deny' from the handler tells
+    // Electron not to create a window; we route the URL
+    // to the OS via shell.openExternal.
+    win.webContents.setWindowOpenHandler(({ url }) => {
+      if (url.startsWith('http://') || url.startsWith('https://') ||
+          url.startsWith('mailto:') || url.startsWith('file://')) {
+        void shell.openExternal(url)
+      }
+      return { action: 'deny' }
+    })
+    // Also block in-place navigation away from the app
+    // (clicking a link that would replace the renderer).
+    win.webContents.on('will-navigate', (event, url) => {
+      if (url.startsWith('http://') || url.startsWith('https://') ||
+          url.startsWith('mailto:')) {
+        event.preventDefault()
+        void shell.openExternal(url)
+      }
+    })
 
     if (process.env.ELECTRON_RENDERER_URL) {
       win.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -336,7 +470,14 @@ export async function boot(input: BootInput): Promise<AppHandle> {
         primarySpawnDone = true
         for (const slab of compiled.slabs) {
           try {
+            // Pass slab.id so TerminalManager keys the
+            // runtime by the SAME id we already sent the
+            // renderer in `rock:slab-map`. Without this the
+            // renderer's slabId never matches what the
+            // manager has, so writes / data events silently
+            // fail.
             await manager.createSlab({
+              id: slab.id,
               workspaceId: slab.workspaceId,
               tabId: slab.tabId,
               name: slab.name,
@@ -425,6 +566,114 @@ export async function boot(input: BootInput): Promise<AppHandle> {
 
   // IPC: respond with the current workspace metadata.
   ipcMain.handle('rock:get-workspace', () => compiled.workspace)
+
+  // Live sidebar tree. null = consumer hasn't set one yet
+  // (use flat fallback). Persisted from .rock/base.json on
+  // load + saved on every rock:save-tree IPC.
+  let liveTree: TreeNode[] | null = persistedWindow?.tree ?? null
+
+  ipcMain.handle('rock:get-tree', () => liveTree)
+  ipcMain.handle(
+    'rock:save-tree',
+    (_event, tree: TreeNode[]) => {
+      if (!Array.isArray(tree)) return
+      liveTree = tree
+      scheduleSave()
+    },
+  )
+
+  // IPC: cwd change from Dock's OSC 7 handler. Update the
+  // live map + schedule a state save.
+  ipcMain.handle(
+    'rock:cwd-change',
+    (_event, { slabId, cwd }: { slabId: string; cwd: string }) => {
+      if (typeof slabId !== 'string' || typeof cwd !== 'string') return
+      liveCwds.set(slabId, cwd)
+      scheduleSave()
+    },
+  )
+
+  // IPC: rename a slab label. Persist for next session.
+  ipcMain.handle(
+    'rock:rename-slab',
+    (_event, { name, label }: { name: string; label: string }) => {
+      if (typeof name !== 'string') return
+      if (!label || label.trim().length === 0 || label.trim() === name) {
+        liveLabels.delete(name)
+      } else {
+        liveLabels.set(name, label.trim())
+      }
+      scheduleSave()
+    },
+  )
+
+  // IPC: open URL in user's default browser. Used by the
+  // terminal's custom link provider when a URL is clicked.
+  ipcMain.handle('rock:open-external', async (_event, url: string) => {
+    if (typeof url !== 'string' || url.length === 0) return
+    await shell.openExternal(url)
+  })
+
+  // IPC: open a local file/dir path. Defers to the OS via
+  // shell.openPath — opens files in the default editor and
+  // dirs in Finder/Explorer.
+  ipcMain.handle('rock:open-path', async (_event, filePath: string) => {
+    if (typeof filePath !== 'string' || filePath.length === 0) return
+    const expanded = filePath.startsWith('~/')
+      ? path.join(process.env.HOME ?? '', filePath.slice(2))
+      : filePath
+    return await shell.openPath(expanded)
+  })
+
+  // IPC: spawn a new slab at runtime. Caller can pass
+  // { name?, program?, cwd?, command? }. We mint an id,
+  // create the slab, update slabIdByName, and broadcast
+  // the new map so every renderer's sidebar/store updates.
+  ipcMain.handle('rock:new-slab', async (_event, opts: {
+    name?: string
+    program?: string
+    cwd?: string
+    command?: string
+  } = {}) => {
+    const usedNames = new Set(Object.keys(compiled.slabIdByName))
+    let name = opts.name
+    if (!name) {
+      // Auto-generate: term-2, term-3, …
+      let n = 2
+      while (usedNames.has(`term-${n}`)) n += 1
+      name = `term-${n}`
+    }
+    if (usedNames.has(name)) {
+      throw new Error(`slab name '${name}' already exists`)
+    }
+    const { createId } = await import('@/base/ids')
+    const id = createId('slab')
+    compiled.slabIdByName[name] = id
+    const tabId = compiled.workspace.tabs[0]!.id
+    await manager.createSlab({
+      id,
+      workspaceId: compiled.workspace.id,
+      tabId,
+      name,
+      cwd: opts.cwd,
+      program: opts.program,
+      command: opts.command,
+      cols: 80,
+      rows: 24,
+    })
+    // Record initial cwd for the new slab so it persists.
+    liveCwds.set(id, opts.cwd ?? process.cwd())
+    // Broadcast updated slab-map to every open window so
+    // every sidebar updates.
+    for (const w of wins) {
+      if (!w.isDestroyed()) {
+        w.webContents.send('rock:slab-map', compiled.slabIdByName)
+      }
+    }
+    // New tab → structural change → persist.
+    scheduleSave()
+    return { name, id }
+  })
 
   // IPC: list of available user bundles (so the renderer
   // knows whether to dynamic-import a user layout or fall

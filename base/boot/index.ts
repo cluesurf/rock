@@ -2,23 +2,37 @@
  * Rock.app entry point.
  *
  * Rock is a host shell. Per-project customization lives in
- * `.rock/` next to the user's code:
+ * `<projectRoot>/.rock/code/index.ts`. That file is the
+ * SINGLE entry point — JIT-bundled by esbuild and loaded
+ * into the renderer. Whatever it default-exports is the
+ * user's app:
  *
- *   .rock/workspace.ts   the slabs to spawn
- *   .rock/layout.tsx     the React layout (JIT-compiled)
- *   .rock/sidebar.tsx    the sidebar (JIT-compiled)
+ *     // .rock/code/index.ts
+ *     import Layout from './layout'
+ *     import Sidebar from './sidebar'
+ *
+ *     export default {
+ *       workspace: { name: 'foo', slabs: {...} },
+ *       Layout,
+ *       Sidebar,
+ *       commands: {...},
+ *     }
+ *
+ * Internally the user can split into as many files as they
+ * want; only `code/index.ts` is contractual.
  *
  * When launched without a project, falls back to a default
- * workspace (zsh + a few helpers) so the app is usable
- * out of the box.
+ * workspace + the built-in sidebar tree.
  */
 
 import { argv, cwd, env } from 'node:process'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   findRockFolders,
   loadRockFolder,
+  bundleUserModule,
 } from '@cluesurf/rock/node'
-import { bundleUserModule } from '@cluesurf/rock/node'
 import { workspace, type WorkspaceDefinition } from '@cluesurf/rock'
 import { boot } from '@cluesurf/rock/boot'
 
@@ -31,12 +45,25 @@ function projectRootFromArgv(): string {
 }
 
 function defaultWorkspace(): WorkspaceDefinition {
+  // No `program` / `command` here — TerminalManager picks the
+  // OS default shell via getDefaultProgram(). `command` is for
+  // typing something INTO the shell after it starts (e.g.
+  // `command: 'tail -f log.txt'`), NOT the shell binary itself.
   return workspace({
     name: 'rock',
     slabs: {
-      term: { command: env.SHELL ?? 'zsh' },
+      term: {},
     },
   })
+}
+
+/** Resolve `.rock/code/index.{tsx,ts}` if present. */
+function findUserEntry(rockFolder: string): string | null {
+  for (const name of ['code/index.tsx', 'code/index.ts']) {
+    const p = join(rockFolder, name)
+    if (existsSync(p)) return p
+  }
+  return null
 }
 
 async function main() {
@@ -53,14 +80,13 @@ async function main() {
       chosenWorkspace = loaded.workspace
     }
 
-    // JIT-bundle every user .tsx Rock knows about.
-    const candidates: Array<[string, string]> = [
-      ['layout.js', `${folderPath}/layout.tsx`],
-      ['sidebar.js', `${folderPath}/sidebar.tsx`],
-    ]
-    for (const [key, entry] of candidates) {
+    // JIT-bundle the single user entry point. The renderer
+    // imports rock://user/app.js and reads whatever is on
+    // `default` (Layout, Sidebar, commands, etc.).
+    const entry = findUserEntry(folderPath)
+    if (entry) {
       const result = await bundleUserModule(entry)
-      if (result) userBundles[key] = result.code
+      if (result) userBundles['app.js'] = result.code
     }
   } catch (error) {
     console.warn(

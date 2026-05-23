@@ -3,6 +3,7 @@ export * from './paths'
 export * from './terminal-manager'
 export * from './rock-folder'
 export * from './layout-bundle'
+export * from './state-store'
 // workspace-store eagerly imports better-sqlite3 which
 // needs to be rebuilt for Electron's ABI. Currently
 // better-sqlite3@12 doesn't compile against Electron 42's

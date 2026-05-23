@@ -47,6 +47,11 @@ export function compileWorkspace(
       tabId,
       name,
       cwd: slabInput.cwd ?? root,
+      // Leave program undefined when the user didn't set one
+      // so TerminalManager can fall back to the OS default
+      // shell via getDefaultProgram(). Setting it to '' here
+      // would defeat that fallback and pty.spawn would
+      // receive an empty string (which silently does nothing).
       program: slabInput.program ?? '',
       args: slabInput.args ?? [],
       command: slabInput.command,

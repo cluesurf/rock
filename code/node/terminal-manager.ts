@@ -53,6 +53,11 @@ export class TerminalManager {
   }
 
   async createSlab(input: {
+    /** Pre-generated slab id from compileWorkspace. When the
+     *  caller compiled a workspace and sent slabIdByName to
+     *  the renderer, the same id MUST be used here so reads
+     *  / writes from the renderer match the runtime slab. */
+    id?: ID
     workspaceId: ID
     tabId: ID
     name?: string
@@ -64,8 +69,15 @@ export class TerminalManager {
     cols: number
     rows: number
   }): Promise<Slab> {
-    const id = createId('slab')
-    const program = input.program ?? getDefaultProgram()
+    const id = input.id ?? createId('slab')
+    // Treat empty string AND undefined as "use default shell"
+    // — compileWorkspace sets program to '' when the user
+    // didn't specify one. pty.spawn('') would silently do
+    // nothing (no shell ever starts, xterm sits empty).
+    const program =
+      input.program && input.program.length > 0
+        ? input.program
+        : getDefaultProgram()
     const cwd = expandHome(input.cwd ?? process.cwd())
 
     const slab: Slab = {
