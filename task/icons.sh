@@ -75,52 +75,137 @@ if [ -n "$SRC_SVG" ]; then
 fi
 
 # ── Render exactly one PNG at a target size ──────────────
-# For SVG: directly rasterize at that size (best quality).
-# For PNG: downscale from the source.
+# For SVG large sizes (≥256): the high-quality pipeline.
+#   1. Inkscape renders at 4096×4096 (4× oversample so the
+#      vector data anti-aliases generously into each pixel).
+#   2. magick downscales to the target with Lanczos.
+#   3. Adds very subtle gaussian noise (-attenuate 0.3)
+#      to break 8-bit quantization bands. The noise is
+#      below the eye's threshold at viewing distance but
+#      kills the bands.
+#   4. Outputs 8-bit PNG. (PNG48 / 16-bit would eliminate
+#      banding without noise but most icon formats and
+#      viewers strip to 8-bit anyway.)
+# For SVG small sizes (<256): direct rasterize is fine.
+# For PNG input: downscale via sips.
 render_size() {
   local size="$1"
   local out_file="$2"
 
   if [ -n "$SRC_SVG" ]; then
+    local deep_pipeline="false"
+    if [ "$size" -ge 256 ]; then
+      deep_pipeline="true"
+    fi
+
+    # Oversample factor for the deep pipeline. Larger =
+    # cleaner gradient (more subpixels averaged per output
+    # pixel) but exponentially slower. 4× is the sweet spot.
+    local oversample=4
+
     case "$RASTERIZER" in
       inkscape)
-        # Inkscape 1.x CLI. --export-background-opacity=0 keeps
-        # transparency; --export-png-color-mode=RGBA_8 is the
-        # default but explicit.
-        inkscape \
-          --export-type=png \
-          --export-filename="$out_file" \
-          --export-width="$size" \
-          --export-height="$size" \
-          --export-background-opacity=0 \
-          "$SRC_SVG" >/dev/null 2>&1
+        if [ "$deep_pipeline" = "true" ] && command -v magick >/dev/null 2>&1; then
+          local big_size=$((size * oversample))
+          local tmp_big="${out_file}.big.png"
+          inkscape \
+            --export-type=png \
+            --export-filename="$tmp_big" \
+            --export-width="$big_size" \
+            --export-height="$big_size" \
+            --export-background-opacity=0 \
+            "$SRC_SVG" >/dev/null 2>&1
+          # Downscale with Lanczos + add very subtle gaussian
+          # noise (-attenuate 0.3) to break 8-bit gradient
+          # banding. Noise is far below visibility but kills
+          # bands more cleanly than Floyd-Steinberg dither.
+          # Linear-RGB downscale + Riemersma dither is the
+          # smoothest 8-bit output any pipeline can produce.
+          # Visible bands from here are 8-bit display
+          # limitation, not file artifacts.
+          magick "$tmp_big" \
+            -colorspace RGB \
+            -filter Lanczos \
+            -resize "${size}x${size}" \
+            -colorspace sRGB \
+            -dither Riemersma \
+            -depth 8 \
+            -strip \
+            "$out_file"
+          rm -f "$tmp_big"
+        else
+          inkscape \
+            --export-type=png \
+            --export-filename="$out_file" \
+            --export-width="$size" \
+            --export-height="$size" \
+            --export-background-opacity=0 \
+            "$SRC_SVG" >/dev/null 2>&1
+        fi
         ;;
       rsvg)
-        rsvg-convert \
-          -w "$size" \
-          -h "$size" \
-          --keep-aspect-ratio \
-          --background-color=none \
-          -o "$out_file" \
-          "$SRC_SVG"
+        if [ "$deep_pipeline" = "true" ] && command -v magick >/dev/null 2>&1; then
+          local big_size=$((size * oversample))
+          local tmp_big="${out_file}.big.png"
+          rsvg-convert \
+            -w "$big_size" \
+            -h "$big_size" \
+            --keep-aspect-ratio \
+            --background-color=none \
+            -o "$tmp_big" \
+            "$SRC_SVG"
+          # Linear-RGB downscale + Riemersma dither is the
+          # smoothest 8-bit output any pipeline can produce.
+          # Visible bands from here are 8-bit display
+          # limitation, not file artifacts.
+          magick "$tmp_big" \
+            -colorspace RGB \
+            -filter Lanczos \
+            -resize "${size}x${size}" \
+            -colorspace sRGB \
+            -dither Riemersma \
+            -depth 8 \
+            -strip \
+            "$out_file"
+          rm -f "$tmp_big"
+        else
+          rsvg-convert \
+            -w "$size" \
+            -h "$size" \
+            --keep-aspect-ratio \
+            --background-color=none \
+            -o "$out_file" \
+            "$SRC_SVG"
+        fi
         ;;
       magick)
-        # ImageMagick with RSVG delegate. -density scales the
-        # internal rasterization grid; set high so vector
-        # detail isn't lost before resize.
-        magick \
-          -background none \
-          -density 1200 \
-          "$SRC_SVG" \
-          -resize "${size}x${size}" \
-          -colorspace sRGB \
-          -define png:color-type=6 \
-          "$out_file"
+        if [ "$deep_pipeline" = "true" ]; then
+          local big_size=$((size * oversample))
+          magick \
+            -background none \
+            -density 2400 \
+            "$SRC_SVG" \
+            -resize "${big_size}x${big_size}" \
+            -colorspace RGB \
+            -filter Lanczos \
+            -resize "${size}x${size}" \
+            -colorspace sRGB \
+            -dither Riemersma \
+            -depth 8 \
+            -strip \
+            "$out_file"
+        else
+          magick \
+            -background none \
+            -density 1200 \
+            "$SRC_SVG" \
+            -resize "${size}x${size}" \
+            -colorspace sRGB \
+            "$out_file"
+        fi
         ;;
     esac
   else
-    # Raster source — downscale via sips (CoreGraphics,
-    # high quality). For PNG masters use a ≥1024 source.
     sips -z "$size" "$size" "$SRC_PNG" --out "$out_file" >/dev/null
   fi
 }

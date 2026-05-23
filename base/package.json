@@ -12,9 +12,10 @@
     "prebuild": "pnpm setup-env && pnpm build:lib",
     "prestart": "pnpm setup-env",
     "prepackage": "pnpm setup-env && pnpm build",
-    "setup-env": "pnpm fix-bins && pnpm fix-spawn-helper && pnpm fix-electron",
+    "setup-env": "pnpm fix-bins && pnpm fix-spawn-helper && pnpm fix-electron && pnpm fix-native",
     "fix-bins": "find ../node_modules -path '*/bin/*' \\( -name '*.js' -o -name '*.cjs' -o -name '*.mjs' \\) -exec chmod +x {} + 2>/dev/null; true",
     "fix-electron": "test -d ../node_modules/electron/dist || node ../node_modules/electron/install.js",
+    "fix-native": "test -f ../node_modules/node-pty/build/Release/pty.node || bash -c 'export SDKROOT=\"$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk 2>/dev/null | tail -1)\"; pnpm dlx @electron/rebuild --only node-pty'",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
@@ -23,7 +24,7 @@
     "package:win": "electron-builder --win",
     "package:linux": "electron-builder --linux",
     "fix-spawn-helper": "find ../node_modules -path '*node-pty*/prebuilds/*/spawn-helper' -exec chmod +x {} +",
-    "rebuild-native": "pnpm dlx @electron/rebuild -f -w node-pty,better-sqlite3"
+    "rebuild-native": "bash -c 'export SDKROOT=\"$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk 2>/dev/null | tail -1)\"; pnpm dlx @electron/rebuild --only node-pty'"
   },
   "dependencies": {
     "@cluesurf/rock": "workspace:*",
