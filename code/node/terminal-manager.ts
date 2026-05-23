@@ -7,7 +7,7 @@ import type {
 } from '@/base/protocol'
 import type { ID, Slab } from '@/base/types'
 import { expandHome } from './paths'
-import { getDefaultShell } from './shell'
+import { getDefaultProgram } from './program'
 
 export type TerminalManagerOptions = {
   emit(event: TerminalEvent): void
@@ -57,7 +57,7 @@ export class TerminalManager {
     tabId: ID
     name?: string
     cwd?: string
-    shell?: string
+    program?: string
     args?: string[]
     command?: string
     env?: Record<string, string>
@@ -65,7 +65,7 @@ export class TerminalManager {
     rows: number
   }): Promise<Slab> {
     const id = createId('slab')
-    const shell = input.shell ?? getDefaultShell()
+    const program = input.program ?? getDefaultProgram()
     const cwd = expandHome(input.cwd ?? process.cwd())
 
     const slab: Slab = {
@@ -74,7 +74,7 @@ export class TerminalManager {
       tabId: input.tabId,
       name: input.name ?? path.basename(cwd),
       cwd,
-      shell,
+      program,
       args: input.args ?? [],
       command: input.command,
       env: input.env,
@@ -87,7 +87,7 @@ export class TerminalManager {
 
     this.emitStatus(id, 'starting')
 
-    const proc = pty.spawn(shell, input.args ?? [], {
+    const proc = pty.spawn(program, input.args ?? [], {
       name: 'xterm-256color',
       cols: input.cols,
       rows: input.rows,
@@ -182,7 +182,7 @@ export class TerminalManager {
       tabId: slab.tabId,
       name: slab.name,
       cwd: slab.cwd,
-      shell: slab.shell,
+      program: slab.program,
       args: slab.args,
       command: slab.command,
       env: slab.env,

@@ -20,21 +20,32 @@
 
 ## Overview
 
+**A headless, hackable terminal system.**
+
 Rock is a TypeScript library for building Electron-based terminal
 workspace apps. It packages the slow parts (PTY lifecycle, IPC bridge,
-xterm.js rendering, layout splits, sidebar tree, SQLite session
-persistence) so a consumer can focus on workspace UX, custom slab
-content, and orchestration.
+xterm.js rendering, layout splits, session persistence) so a consumer
+can focus on workspace UX, custom slab content, and orchestration.
 
-The public v1 API is intentionally narrow. A workspace is a named map of
-slabs. Layouts are written in JSX. Sidebars are written in JSX. No graph
-DSL, no plugin runtime to learn first. Compose like a normal React app
-with terminal slabs as components.
+**Headless**: components emit zero visual styling by default. Compose
+with Tailwind, CSS modules, styled-components, or vanilla CSS. The
+optional `@cluesurf/rock/tailwind/preset.css` gives sensible
+defaults in one line.
+
+**Hackable**: the workspace, layout, and sidebar are YOUR React tree
+using rock primitives (`<Nest>`, `<Slab>`, `<Dock>`, `<Tree>`,
+`<Bar>`, `<Palette>`). No DSL. No plugin lock-in. No prescribed app
+shape.
+
+The public v1 API is intentionally narrow. A workspace is a named map
+of slabs. Layouts are JSX. Sidebars are JSX. No graph DSL, no plugin
+runtime to learn first. Compose like a normal React app with terminal
+slabs as components.
 
 The internal model is richer (stable slab IDs, IPC protocol, status
-events, persistent store) so that more advanced workspace orchestration,
-auto-discovery, plugins, and a daemon can be layered in later without
-reshaping the public API.
+events, persistent store) so that more advanced workspace
+orchestration, auto-discovery, plugins, and a daemon can be layered in
+later without reshaping the public API.
 
 A consumer ships a `.rock/` folder at the project root containing
 `workspace.ts`, `layout.tsx`, `sidebar.tsx`, etc. The runtime loads

@@ -7,8 +7,6 @@ Companions:
 - `terminal-landscape.md` (the full ecosystem)
 - `terminal-from-scratch.md` (why building is hard)
 
----
-
 ## What Rock is
 
 Rock is **a thin TypeScript library** for building Electron-based
@@ -21,8 +19,6 @@ UX, custom layouts, custom sidebars, custom commands.
 A workspace is a named map of slabs. Layouts are JSX. Sidebars are JSX.
 You write a `.rock/` folder, mount the library's React components, and
 ship.
-
----
 
 ## What Rock is NOT
 
@@ -41,8 +37,6 @@ If you want a multiplexer: use tmux or zellij.
 
 If you want to **build your own workspace app on top of solved
 primitives**: Rock.
-
----
 
 ## The common case Rock makes easy
 
@@ -78,8 +72,6 @@ defineWorkspace({ name, slabs: { web, api, logs } })
 ```
 
 That's a terminal workspace app.
-
----
 
 ## The trade-offs Rock made
 
@@ -150,8 +142,6 @@ purity.
 | Doesn't appeal to vim-config writers | They have WezTerm and Kitty.                         |
 | In exchange:                         | React composability, npm package access, type safety |
 
----
-
 ## The tools Rock wraps
 
 Standing on the shoulders of giants. Every one of these is a
@@ -178,8 +168,6 @@ Optional consumer-side picks:
 | **Vite**          | Renderer bundler                  | Fast HMR, modern.                     |
 | **Tailwind v4**   | Renderer styling                  | CSS-first config, no JS toolchain.    |
 
----
-
 ## What Rock adds
 
 The thin layer on top:
@@ -196,8 +184,6 @@ The thin layer on top:
 **Total**: ~1500 lines of focused TypeScript. The rest is the giants
 underneath.
 
----
-
 ## What you contribute
 
 When you use Rock:
@@ -213,8 +199,6 @@ When you use Rock:
 | `code/app.tsx` (your React root)              | `<TerminalApiProvider>`, `<TerminalEvents>`, `useTerminalStore` |
 
 You write the workspace UX. Rock handles everything underneath.
-
----
 
 ## When NOT to use Rock
 
@@ -239,8 +223,6 @@ Honest exclusions:
 - **You don't write TypeScript / React.** Rock is TypeScript-native. Lua
   scripters should use WezTerm; Python scripters should use Kitty.
 
----
-
 ## When to use Rock
 
 | Scenario                                                    | Why Rock fits                                           |
@@ -250,8 +232,6 @@ Honest exclusions:
 | "I want an AI-aware code terminal"                          | Add your AI client as a React component in `.rock/`.    |
 | "I want a terminal for a band / studio workflow"            | Spawn mixer / DAW CLI / monitoring scripts as slabs.    |
 | "I'm building a niche dev tool that ships as a desktop app" | Rock is your Electron + terminal + UI starter.          |
-
----
 
 ## The honest sentence
 
@@ -264,8 +244,6 @@ days, not months.
 
 Everything Rock does well is because someone else solved the hard part
 first. Rock just makes the common case easy.
-
----
 
 ## Related
 

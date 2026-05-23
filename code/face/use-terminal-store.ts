@@ -1,12 +1,9 @@
 import { create } from 'zustand'
-import type {
-  TerminalEvent,
-  TerminalRequest,
-} from '@/base/protocol'
+import type { TerminalEvent, TerminalRequest } from '@/base/protocol'
 import type { ID, Slab, Workspace } from '@/base/types'
 import type { TerminalApi } from './terminal-api'
 
-export type TerminalState = {
+export interface TerminalState {
   api: TerminalApi | null
   workspaces: Workspace[]
   slabs: Record<ID, Slab>

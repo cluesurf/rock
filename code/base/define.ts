@@ -51,7 +51,7 @@ export type WorkspaceDefinition = {
 export type SlabDefinition = {
   cwd?: string
   command?: string
-  shell?: string
+  program?: string
   args?: string[]
   env?: Record<string, string>
 }
@@ -59,10 +59,18 @@ export type SlabDefinition = {
 /**
  * Identity helper. Gives type inference + IDE
  * autocomplete to a `.rock/workspace.ts` export.
+ *
+ *     export default workspace({
+ *       name: 'my-app',
+ *       slabs: { web: { command: 'pnpm dev' } },
+ *     })
  */
-export function defineWorkspace<T extends WorkspaceDefinition>(input: T): T {
+export function workspace<T extends WorkspaceDefinition>(input: T): T {
   return input
 }
+
+/** @deprecated Use `workspace` instead. */
+export const defineWorkspace = workspace
 
 /**
  * Named command map for `.rock/commands.ts`. Run via
@@ -76,11 +84,14 @@ export function defineWorkspace<T extends WorkspaceDefinition>(input: T): T {
  *       migrate: { command: 'pnpm migrate', cwd: './base' },
  *     })
  */
-export function defineCommands<T extends Record<string, CommandDefinition>>(
-  commands: T,
+export function commands<T extends Record<string, CommandDefinition>>(
+  input: T,
 ): T {
-  return commands
+  return input
 }
+
+/** @deprecated Use `commands` instead. */
+export const defineCommands = commands
 
 export type CommandDefinition = {
   command: string

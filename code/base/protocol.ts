@@ -25,7 +25,7 @@ export type TerminalRequest =
         tabId: ID
         name?: string
         cwd?: string
-        shell?: string
+        program?: string
         args?: string[]
         command?: string
         env?: Record<string, string>

@@ -11,9 +11,14 @@
     "predev": "pnpm build:lib && pnpm fix-spawn-helper",
     "prebuild": "pnpm build:lib && pnpm fix-spawn-helper",
     "prestart": "pnpm fix-spawn-helper",
+    "prepackage": "pnpm build && pnpm fix-spawn-helper",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
+    "package": "electron-builder",
+    "package:mac": "electron-builder --mac",
+    "package:win": "electron-builder --win",
+    "package:linux": "electron-builder --linux",
     "fix-spawn-helper": "find ../node_modules -path '*node-pty*/prebuilds/*/spawn-helper' -exec chmod +x {} +",
     "rebuild-native": "pnpm dlx @electron/rebuild -f -w node-pty,better-sqlite3"
   },
@@ -36,10 +41,45 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
     "electron": "^32.0.0",
+    "electron-builder": "^25.0.0",
     "electron-vite": "^2.3.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.4.5",
     "vite": "^5.4.0"
+  },
+  "build": {
+    "appId": "com.cluesurf.rock",
+    "productName": "Rock",
+    "directories": {
+      "output": "dist",
+      "buildResources": "code/assets"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "asar": false,
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
+      ],
+      "icon": "code/assets/icon.icns",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "code/assets/icon.ico"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "code/assets/icon.png",
+      "category": "Development"
+    }
   },
   "pnpm": {
     "onlyBuiltDependencies": [

@@ -1,8 +1,7 @@
 {
   "name": "@cluesurf/rock",
-  "description": "Programmable terminal workspace library",
-  "version": "0.0.0",
-  "private": true,
+  "description": "A Hackable Terminal ⊡",
+  "version": "0.0.2",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "main": "./host/index.js",
@@ -43,9 +42,18 @@
     "./desktop/*": {
       "types": "./host/desktop/*.d.ts",
       "default": "./host/desktop/*.js"
-    }
+    },
+    "./boot": {
+      "types": "./host/boot/index.d.ts",
+      "default": "./host/boot/index.js"
+    },
+    "./boot/preload": {
+      "types": "./host/boot/preload.d.ts",
+      "default": "./host/boot/preload.js"
+    },
+    "./tailwind/preset.css": "./tailwind/preset.css"
   },
-  "files": ["host"],
+  "files": ["host", "tailwind"],
   "scripts": {
     "make": "rm -rf host && tsc && tsc-alias --resolve-full-paths",
     "scan": "concurrently --kill-others \"tsc -w\" \"tsc-alias --resolve-full-paths -w\"",
@@ -55,7 +63,13 @@
     "dev": "pnpm --filter @cluesurf/rock-demo dev",
     "build": "pnpm --filter @cluesurf/rock-demo build",
     "start": "pnpm --filter @cluesurf/rock-demo start",
-    "demo:install": "pnpm --filter @cluesurf/rock-demo install"
+    "demo:install": "pnpm --filter @cluesurf/rock-demo install",
+    "prepublishOnly": "pnpm make && pnpm test",
+    "publish:npm": "pnpm publish --access public --no-git-checks",
+    "publish:dry": "pnpm publish --access public --dry-run",
+    "release:patch": "pnpm version patch && pnpm publish:npm",
+    "release:minor": "pnpm version minor && pnpm publish:npm",
+    "release:major": "pnpm version major && pnpm publish:npm"
   },
   "peerDependencies": {
     "@xterm/addon-fit": "^0.10.0",
@@ -85,16 +99,13 @@
     "@types/better-sqlite3": "^7.6.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
     "concurrently": "^9.0.0",
     "tsc-alias": "^1.8.10",
     "typescript": "^5.4.5",
     "vitest": "^2.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3",
-      "esbuild",
-      "node-pty"
-    ]
+    "onlyBuiltDependencies": ["better-sqlite3", "esbuild", "node-pty"]
   }
 }

@@ -47,7 +47,7 @@ export function compileWorkspace(
       tabId,
       name,
       cwd: slabInput.cwd ?? root,
-      shell: slabInput.shell ?? '',
+      program: slabInput.program ?? '',
       args: slabInput.args ?? [],
       command: slabInput.command,
       env: { ...input.env, ...slabInput.env },

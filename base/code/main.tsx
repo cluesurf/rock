@@ -1,7 +1,4 @@
-import { createRoot } from 'react-dom/client'
-import { App } from './app'
+import { mount } from '@cluesurf/rock/face'
+import { App } from './base'
 
-const container = document.getElementById('root')
-if (!container) throw new Error('Root element not found')
-
-createRoot(container).render(<App />)
+mount(<App />)

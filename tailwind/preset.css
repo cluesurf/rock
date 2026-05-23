@@ -1,0 +1,176 @@
+/*
+ * @cluesurf/rock — Tailwind preset
+ *
+ * Optional defaults for rock's data-attribute hooks.
+ * Import after `@import "tailwindcss"`:
+ *
+ *   @import "tailwindcss";
+ *   @import "@cluesurf/rock/tailwind/preset.css";
+ *
+ * Requires Tailwind v4+.
+ */
+
+@layer components {
+  /* ── Nest ──────────────────────────────────────── */
+
+  [data-rock-nest] {
+    @apply flex w-full h-full overflow-hidden;
+  }
+  [data-rock-nest][data-direction='vertical'] {
+    @apply flex-col;
+  }
+  [data-rock-nest-cell] {
+    @apply min-w-0 min-h-0;
+  }
+
+  /* ── Slab ──────────────────────────────────────── */
+
+  [data-rock-slab] {
+    @apply flex flex-col w-full h-full overflow-hidden
+           bg-neutral-950 border border-neutral-800 rounded-md;
+  }
+  [data-rock-slab-header] {
+    @apply flex items-center gap-2 px-3 py-1.5
+           bg-neutral-900 border-b border-neutral-800
+           text-xs uppercase tracking-wider text-neutral-400
+           select-none;
+  }
+  [data-rock-slab-dot] {
+    @apply text-[10px] leading-none;
+  }
+  [data-rock-slab-dot][data-ready='true']  { @apply text-emerald-500; }
+  [data-rock-slab-dot][data-ready='false'] { @apply text-neutral-600; }
+  [data-rock-slab-name] { @apply text-neutral-300; }
+  [data-rock-slab-body] { @apply flex-1 min-h-0 min-w-0 bg-black; }
+
+  /* ── Dock ──────────────────────────────────────── */
+
+  [data-rock-dock] { @apply w-full h-full bg-black; }
+  [data-rock-dock-canvas] { @apply w-full h-full p-2; }
+
+  /* ── Tree ──────────────────────────────────────── */
+
+  [data-rock-tree] {
+    @apply flex flex-col gap-1 p-2 text-sm text-neutral-300 overflow-auto;
+  }
+  [data-rock-branch] {
+    @apply flex flex-col;
+  }
+  [data-rock-branch-header] {
+    @apply flex items-center gap-1 w-full px-2 py-1
+           text-xs uppercase tracking-wider text-neutral-500
+           hover:text-neutral-300 cursor-pointer select-none
+           bg-transparent border-0 text-left;
+  }
+  [data-rock-branch-caret] {
+    @apply text-[8px] text-neutral-600 w-3;
+  }
+  [data-rock-branch-icon] { @apply text-neutral-500; }
+  [data-rock-branch-label] { @apply flex-1; }
+  [data-rock-branch-actions] { @apply ml-auto opacity-0 group-hover:opacity-100; }
+  [data-rock-branch-children] {
+    @apply flex flex-col gap-0.5 pl-3;
+  }
+
+  [data-rock-leaf] {
+    @apply flex items-center gap-2 w-full px-2 py-1 rounded
+           text-sm text-neutral-400 text-left bg-transparent border-0
+           cursor-pointer
+           hover:bg-neutral-900 hover:text-neutral-100;
+  }
+  [data-rock-leaf][data-active='true'] {
+    @apply bg-neutral-800 text-white;
+  }
+  [data-rock-leaf-dot] {
+    @apply text-[10px] leading-none;
+  }
+  [data-rock-leaf-dot][data-status='running']  { @apply text-emerald-500; }
+  [data-rock-leaf-dot][data-status='exited']   { @apply text-neutral-500; }
+  [data-rock-leaf-dot][data-status='failed']   { @apply text-red-500; }
+  [data-rock-leaf-dot][data-status='starting'] { @apply text-yellow-500; }
+  [data-rock-leaf-dot][data-status='idle']     { @apply text-neutral-700; }
+  [data-rock-leaf-icon] { @apply text-neutral-400; }
+  [data-rock-leaf-label] { @apply flex-1 truncate; }
+  [data-rock-leaf-actions] { @apply ml-auto; }
+
+  /* ── Bar / Cell ────────────────────────────────── */
+
+  [data-rock-bar] {
+    @apply flex items-center gap-3 w-full px-3 py-1
+           bg-neutral-900 border-t border-neutral-800
+           text-xs text-neutral-400 select-none;
+  }
+  [data-rock-bar][data-position='top'] {
+    @apply border-t-0 border-b;
+  }
+  [data-rock-cell] { @apply flex items-center; }
+  [data-rock-cell][data-align='center'] { @apply justify-center mx-auto; }
+  [data-rock-cell][data-align='right']  { @apply ml-auto; }
+
+  /* ── Sheet ─────────────────────────────────────── */
+
+  [data-rock-sheet] {
+    @apply fixed inset-0 z-50 flex items-start justify-center
+           pt-24 bg-black/60 backdrop-blur-sm;
+  }
+  [data-rock-sheet-modal] {
+    @apply w-full max-w-xl rounded-lg overflow-hidden
+           bg-neutral-900 border border-neutral-800 shadow-2xl;
+  }
+
+  /* ── Palette ───────────────────────────────────── */
+
+  [data-rock-palette] { @apply flex flex-col; }
+  [data-rock-palette-input] {
+    @apply w-full px-4 py-3 bg-transparent border-0 border-b border-neutral-800
+           text-base text-neutral-100 placeholder-neutral-500
+           outline-none;
+  }
+  [data-rock-palette-list] {
+    @apply flex flex-col max-h-96 overflow-auto py-1;
+  }
+  [data-rock-palette-empty] {
+    @apply px-4 py-3 text-sm text-neutral-500;
+  }
+  [data-rock-palette-item] {
+    @apply flex items-center gap-2 px-4 py-2 cursor-pointer
+           text-sm text-neutral-300;
+  }
+  [data-rock-palette-item][data-selected='true'] {
+    @apply bg-neutral-800 text-white;
+  }
+  [data-rock-palette-item-icon] { @apply text-neutral-500; }
+  [data-rock-palette-item-label] { @apply flex-1 truncate; }
+  [data-rock-palette-item-group] {
+    @apply ml-2 text-xs text-neutral-500;
+  }
+  [data-rock-palette-item-hotkey] {
+    @apply ml-auto text-xs font-mono text-neutral-500
+           bg-neutral-800 px-1.5 py-0.5 rounded;
+  }
+
+  /* ── Toast ─────────────────────────────────────── */
+
+  [data-rock-toast-wrap] {
+    @apply fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm;
+  }
+  [data-rock-toast] {
+    @apply flex items-center gap-2 px-3 py-2 rounded-md
+           bg-neutral-900 border border-neutral-800 shadow-lg
+           text-sm text-neutral-200;
+  }
+  [data-rock-toast][data-kind='success'] { @apply border-emerald-700/50; }
+  [data-rock-toast][data-kind='warn']    { @apply border-yellow-700/50; }
+  [data-rock-toast][data-kind='error']   { @apply border-red-700/50; }
+  [data-rock-toast-body] { @apply flex-1; }
+  [data-rock-toast-action] {
+    @apply text-xs px-2 py-1 rounded
+           bg-neutral-800 hover:bg-neutral-700
+           text-neutral-200 border-0 cursor-pointer;
+  }
+  [data-rock-toast-close] {
+    @apply text-neutral-500 hover:text-neutral-200
+           bg-transparent border-0 cursor-pointer
+           text-lg leading-none w-5 text-center;
+  }
+}

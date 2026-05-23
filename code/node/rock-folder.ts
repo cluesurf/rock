@@ -12,15 +12,15 @@ import type { Plugin } from '@/base/plugin'
 /**
  * The `.rock/` folder convention.
  *
- *     global:  ~/.term/
- *     project: ./.term/
+ *     global:  ~/.rock/
+ *     project: ./.rock/
  *
  * Walks upward from a cwd to find the nearest project
  * `.rock/`, merges with `~/.rock/` defaults, returns
  * the resolved configuration.
  */
 
-export type RockFolderPaths = {
+export interface RockFolderPaths {
   globalRoot: string
   projectRoot: string | null
 }
@@ -49,7 +49,7 @@ export function findProjectRockFolder(startCwd: string): string | null {
   }
 }
 
-export type LoadedRockConfig = {
+export interface LoadedRockConfig {
   workspace: WorkspaceDefinition | null
   commands: Record<string, CommandDefinition>
   plugins: Plugin[]
@@ -140,7 +140,8 @@ export function mergeRockConfigs(
     workspace: project.workspace ?? global.workspace,
     commands: { ...global.commands, ...project.commands },
     plugins: [...global.plugins, ...project.plugins],
-    sidebarComponent: project.sidebarComponent ?? global.sidebarComponent,
+    sidebarComponent:
+      project.sidebarComponent ?? global.sidebarComponent,
     layout: project.layout ?? global.layout,
     rootDirectory: project.rootDirectory,
   }

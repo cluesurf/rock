@@ -26,7 +26,7 @@ export class WorkspaceStore {
         tab_id text not null,
         name text not null,
         cwd text not null,
-        shell text not null,
+        program text not null,
         args text not null,
         command text,
         env text,
@@ -71,7 +71,7 @@ export class WorkspaceStore {
   listWorkspaces(): Workspace[] {
     const rows = this.database
       .prepare(`select data from workspace order by updated_at desc`)
-      .all() as Array<{ data: string }>
+      .all() as { data: string }[]
     return rows.map(row => JSON.parse(row.data) as Workspace)
   }
 
@@ -84,7 +84,9 @@ export class WorkspaceStore {
 
   deleteWorkspace(id: ID): void {
     this.database.prepare(`delete from workspace where id = ?`).run(id)
-    this.database.prepare(`delete from slab where workspace_id = ?`).run(id)
+    this.database
+      .prepare(`delete from slab where workspace_id = ?`)
+      .run(id)
   }
 
   saveSlab(slab: Slab): void {
@@ -92,16 +94,16 @@ export class WorkspaceStore {
       .prepare(
         `
         insert into slab (
-          id, workspace_id, tab_id, name, cwd, shell, args, command, env,
+          id, workspace_id, tab_id, name, cwd, program, args, command, env,
           cols, rows, status, created_at, updated_at
         ) values (
-          @id, @workspaceId, @tabId, @name, @cwd, @shell, @args, @command,
+          @id, @workspaceId, @tabId, @name, @cwd, @program, @args, @command,
           @env, @cols, @rows, @status, @createdAt, @updatedAt
         )
         on conflict(id) do update set
           name = excluded.name,
           cwd = excluded.cwd,
-          shell = excluded.shell,
+          program = excluded.program,
           args = excluded.args,
           command = excluded.command,
           env = excluded.env,
@@ -122,13 +124,13 @@ export class WorkspaceStore {
   listSlabsForWorkspace(workspaceId: ID): Slab[] {
     const rows = this.database
       .prepare(`select * from slab where workspace_id = ?`)
-      .all(workspaceId) as Array<{
+      .all(workspaceId) as {
       id: string
       workspace_id: string
       tab_id: string
       name: string
       cwd: string
-      shell: string
+      program: string
       args: string
       command: string | null
       env: string
@@ -137,7 +139,7 @@ export class WorkspaceStore {
       status: string
       created_at: number
       updated_at: number
-    }>
+    }[]
 
     return rows.map(row => ({
       id: row.id,
@@ -145,7 +147,7 @@ export class WorkspaceStore {
       tabId: row.tab_id,
       name: row.name,
       cwd: row.cwd,
-      shell: row.shell,
+      program: row.program,
       args: JSON.parse(row.args) as string[],
       command: row.command ?? undefined,
       env: JSON.parse(row.env) as Record<string, string>,

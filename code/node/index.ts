@@ -1,4 +1,4 @@
-export * from './shell'
+export * from './program'
 export * from './paths'
 export * from './terminal-manager'
 export * from './workspace-store'

@@ -10,7 +10,7 @@ export default defineConfig({
       outDir: resolve(__dirname, 'out/main'),
       emptyOutDir: true,
       rollupOptions: {
-        input: resolve(__dirname, 'boot/main.ts'),
+        input: resolve(__dirname, 'boot/index.ts'),
         output: {
           format: 'es',
           entryFileNames: 'index.js',
