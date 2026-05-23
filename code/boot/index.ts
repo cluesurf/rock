@@ -32,6 +32,15 @@ import {
   createWindowEmitter,
   wireTerminalMain,
 } from '@/desktop/main-handler'
+import {
+  RockBundleStore,
+  registerRockProtocol,
+  registerRockProtocolSchemes,
+} from '@/desktop/rock-protocol'
+
+// Register the rock:// scheme as privileged. Must run
+// BEFORE app.whenReady(). Side-effect at module load.
+registerRockProtocolSchemes()
 
 export interface BootInput {
   /** App name (shown in menu bar, dock, Cmd+Tab). */
@@ -54,6 +63,13 @@ export interface BootInput {
   onReady?: (app: AppHandle) => void | Promise<void>
   /** Called when the app is shutting down. */
   onClose?: (app: AppHandle) => void | Promise<void>
+  /**
+   * Pre-compiled JIT bundles exposed via the rock://
+   * protocol. Key is the URL filename (e.g. 'layout.js').
+   * Renderer imports them with
+   * `await import('rock://user/layout.js')`.
+   */
+  userBundles?: Record<string, string>
 }
 
 export interface BootWindowOptions {
@@ -410,7 +426,17 @@ export async function boot(input: BootInput): Promise<AppHandle> {
   // IPC: respond with the current workspace metadata.
   ipcMain.handle('rock:get-workspace', () => compiled.workspace)
 
+  // IPC: list of available user bundles (so the renderer
+  // knows whether to dynamic-import a user layout or fall
+  // back to the default).
+  const bundleStore = new RockBundleStore()
+  for (const [key, code] of Object.entries(input.userBundles ?? {})) {
+    bundleStore.set(key, code)
+  }
+  ipcMain.handle('rock:get-user-bundles', () => bundleStore.keys())
+
   app.whenReady().then(() => {
+    registerRockProtocol(bundleStore)
     buildMenu()
     createWindow()
   })

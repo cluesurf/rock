@@ -59,6 +59,12 @@ const api = {
   async newWindow(): Promise<void> {
     await ipcRenderer.invoke('rock:new-window')
   },
+  // List of JIT user bundles available via the rock://
+  // protocol. The renderer uses this to decide whether to
+  // import a user layout/sidebar or fall back to defaults.
+  async getUserBundles(): Promise<string[]> {
+    return await ipcRenderer.invoke('rock:get-user-bundles')
+  },
 }
 
 contextBridge.exposeInMainWorld('app', api)

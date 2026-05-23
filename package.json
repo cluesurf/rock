@@ -53,20 +53,25 @@
     },
     "./tailwind/preset.css": "./tailwind/preset.css"
   },
-  "files": [
-    "host",
-    "tailwind"
-  ],
+  "files": ["host", "tailwind"],
   "scripts": {
     "make": "rm -rf host && tsc && tsc-alias --resolve-full-paths",
+    "make:icons": "bash task/icons.sh",
+    "clean": "rm -rf node_modules base/node_modules host base/out base/dist",
+    "clean:lock": "rm -rf node_modules base/node_modules host base/out base/dist pnpm-lock.yaml",
+    "reset": "pnpm clean:lock && pnpm install",
     "scan": "concurrently --kill-others \"tsc -w\" \"tsc-alias --resolve-full-paths -w\"",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "lint": "eslint --ext .ts,.tsx ./code --fix",
-    "dev": "pnpm --filter @cluesurf/rock-demo dev",
-    "build": "pnpm --filter @cluesurf/rock-demo build",
-    "start": "pnpm --filter @cluesurf/rock-demo start",
-    "demo:install": "pnpm --filter @cluesurf/rock-demo install",
+    "dev": "pnpm --filter @cluesurf/rock-base dev",
+    "build": "pnpm --filter @cluesurf/rock-base build",
+    "start": "pnpm --filter @cluesurf/rock-base start",
+    "demo:install": "pnpm --filter @cluesurf/rock-base install",
+    "package": "pnpm --filter @cluesurf/rock-base package",
+    "package:mac": "pnpm --filter @cluesurf/rock-base package:mac",
+    "package:win": "pnpm --filter @cluesurf/rock-base package:win",
+    "package:linux": "pnpm --filter @cluesurf/rock-base package:linux",
     "prepublishOnly": "pnpm make && pnpm test",
     "publish:npm": "pnpm publish --access public --no-git-checks",
     "publish:dry": "pnpm publish --access public --dry-run",
@@ -75,15 +80,16 @@
     "release:major": "pnpm version major && pnpm publish:npm"
   },
   "peerDependencies": {
-    "@xterm/addon-fit": "^0.10.0",
-    "@xterm/addon-search": "^0.15.0",
-    "@xterm/addon-web-links": "^0.11.0",
-    "@xterm/xterm": "^5.5.0",
-    "better-sqlite3": "^11.0.0",
-    "electron": ">=30.0.0",
-    "node-pty": "^1.0.0",
-    "react": ">=18.0.0",
-    "react-dom": ">=18.0.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-search": "^0.16.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/xterm": "^6.0.0",
+    "better-sqlite3": "^12.0.0",
+    "electron": ">=42.0.0",
+    "esbuild": "^0.28.0",
+    "node-pty": "^1.1.0",
+    "react": ">=19.2.0",
+    "react-dom": ">=19.2.0",
     "zustand": "^5.0.0"
   },
   "peerDependenciesMeta": {
@@ -105,6 +111,9 @@
     "electron": {
       "optional": true
     },
+    "esbuild": {
+      "optional": true
+    },
     "node-pty": {
       "optional": true
     },
@@ -119,20 +128,16 @@
     }
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.0",
-    "@types/node": "^20.0.0",
-    "@types/react": "^18.0.0",
-    "@types/react-dom": "^18.0.0",
-    "concurrently": "^9.0.0",
-    "tsc-alias": "^1.8.10",
-    "typescript": "^5.4.5",
-    "vitest": "^2.0.0"
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "concurrently": "^9.2.0",
+    "tsc-alias": "^1.8.17",
+    "typescript": "^6.0.0",
+    "vitest": "^4.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3",
-      "esbuild",
-      "node-pty"
-    ]
+    "onlyBuiltDependencies": ["better-sqlite3", "esbuild", "node-pty"]
   }
 }

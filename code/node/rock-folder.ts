@@ -64,14 +64,16 @@ export interface LoadedRockConfig {
  * absolutely.
  *
  * Files probed:
- *   term.ts        the WorkspaceDefinition (required for `rock open`)
+ *   workspace.ts   the WorkspaceDefinition (required for `rock open`)
  *   commands.ts    Record<string, CommandDefinition>
  *   plugins.ts     Plugin[]
- *   sidebar.tsx    React component path (resolved absolute)
- *   layout.ts      LayoutNode AST
+ *   sidebar.tsx    React component path (resolved absolute,
+ *                  JIT-bundled by code/node/layout-bundle.ts)
+ *   layout.tsx     React layout component (JIT-bundled by
+ *                  code/node/layout-bundle.ts)
  */
 export async function loadRockFolder(
-  termDirectory: string,
+  rockDirectory: string,
 ): Promise<LoadedRockConfig> {
   const result: LoadedRockConfig = {
     workspace: null,
@@ -79,41 +81,37 @@ export async function loadRockFolder(
     plugins: [],
     sidebarComponent: null,
     layout: null,
-    rootDirectory: termDirectory,
+    rootDirectory: rockDirectory,
   }
 
-  const termModule = await loadOptional<{
+  const workspaceModule = await loadOptional<{
     default: WorkspaceDefinition
-  }>(join(termDirectory, 'term.ts'))
-  if (termModule?.default) {
-    result.workspace = termModule.default
+  }>(join(rockDirectory, 'workspace.ts'))
+  if (workspaceModule?.default) {
+    result.workspace = workspaceModule.default
   }
 
   const commandsModule = await loadOptional<{
     default: Record<string, CommandDefinition>
-  }>(join(termDirectory, 'commands.ts'))
+  }>(join(rockDirectory, 'commands.ts'))
   if (commandsModule?.default) {
     result.commands = commandsModule.default
   }
 
   const pluginsModule = await loadOptional<{ default: Plugin[] }>(
-    join(termDirectory, 'plugins.ts'),
+    join(rockDirectory, 'plugins.ts'),
   )
   if (pluginsModule?.default) {
     result.plugins = pluginsModule.default
   }
 
-  const sidebarPath = join(termDirectory, 'sidebar.tsx')
+  const sidebarPath = join(rockDirectory, 'sidebar.tsx')
   if (existsSync(sidebarPath)) {
     result.sidebarComponent = sidebarPath
   }
 
-  const layoutModule = await loadOptional<{ default: LayoutNode }>(
-    join(termDirectory, 'layout.ts'),
-  )
-  if (layoutModule?.default) {
-    result.layout = layoutModule.default
-  }
+  // layout.tsx is JIT-bundled separately by callers via
+  // code/node/layout-bundle.ts. Not loaded here as data.
 
   return result
 }

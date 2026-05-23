@@ -14,6 +14,7 @@
     "esModuleInterop": true,
     "noUncheckedIndexedAccess": true,
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "allowJs": false,
     "resolveJsonModule": true,
     "skipLibCheck": true,

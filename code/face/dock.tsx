@@ -3,7 +3,9 @@ import { Terminal, type ITerminalOptions } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { SearchAddon } from '@xterm/addon-search'
-import '@xterm/xterm/css/xterm.css'
+// Note: import '@xterm/xterm/css/xterm.css' must be done
+// by the consumer's renderer entry (eg. base/code/main.tsx)
+// to avoid TS errors on side-effect imports in this lib.
 import { useTerminalApi } from './terminal-api'
 import { useTerminalStore } from './use-terminal-store'
 import { useRockTheme } from './slab'
@@ -21,7 +23,6 @@ const DEFAULT_OPTIONS: ITerminalOptions = {
   allowProposedApi: true,
   convertEol: false,
   scrollback: 20000,
-  windowsMode: false,
 }
 
 /**

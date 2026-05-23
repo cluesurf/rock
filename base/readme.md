@@ -1,41 +1,44 @@
-# @cluesurf/rock-demo
+# @cluesurf/rock-base
 
-Runnable Electron + React + Tailwind demo of
-`@cluesurf/rock`.
+The Rock.app host shell — Electron main + preload + minimal
+React renderer that loads the user's `.rock/` config.
 
-Three live slabs in a split layout:
+Rock itself is a library (`@cluesurf/rock`). This package is
+the buildable, shippable application that wraps the library
+and renders whatever the user puts in `.rock/layout.tsx`.
+
+## How it works
 
 ```
-┌─────────────────────┬──────────────────┐
-│                     │                  │
-│   zsh shell         │   top (monitor)  │
-│                     │                  │
-│                     ├──────────────────┤
-│                     │                  │
-│                     │   watch date     │
-│                     │                  │
-└─────────────────────┴──────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                    Rock.app (host shell)                  │
+│                                                           │
+│   boot/index.ts       discovers .rock/, JIT-bundles       │
+│                       layout.tsx via esbuild, calls       │
+│                       @cluesurf/rock/boot                 │
+│                                                           │
+│   code/base.tsx       asks main for user bundles.         │
+│                       If present, imports                 │
+│                       rock://user/layout.js and renders   │
+│                       it. Else renders a default zsh      │
+│                       dock.                               │
+└───────────────────────────────────────────────────────────┘
 ```
 
-Plus a sidebar with the slab list and click-to-focus.
+User `.rock/` files (all optional):
 
-## Layout
+| File              | What                                        |
+| ----------------- | ------------------------------------------- |
+| `workspace.ts`    | `WorkspaceDefinition` (slabs to spawn)      |
+| `layout.tsx`      | React layout (JIT-compiled per launch)      |
+| `sidebar.tsx`     | React sidebar (JIT-compiled per launch)     |
+| `commands.ts`     | Named commands (`rock call <name>`)         |
+| `plugins.ts`      | Plugin list                                 |
 
-| File                       | What                                               |
-| -------------------------- | -------------------------------------------------- |
-| `boot/main.ts`             | Electron main + TerminalManager + slab spawn       |
-| `boot/preload.ts`          | IPC bridge (exposes `window.app.terminal`)         |
-| `code/index.html`          | Renderer HTML shell                                |
-| `code/main.tsx`            | React entry                                        |
-| `code/app.tsx`             | App shell, sidebar, JSX layout                     |
-| `code/style.css`           | Minimal global CSS                                 |
-| `electron.vite.config.ts`  | electron-vite bundler config                       |
-
-In a real consumer app the workspace + layout + sidebar
-live in `.rock/workspace.ts`, `.rock/layout.tsx`,
-`.rock/sidebar.tsx`. This demo inlines them in
-`boot/main.ts` and `code/app.tsx` so no folder loader
-is needed.
+When launched without a project (eg `open -a Rock`), the
+shell walks up from the CWD looking for a `.rock/`. If none
+is found, it falls back to `~/.rock/` (global), and if
+that's also missing, a default single-shell workspace.
 
 ## Run
 
@@ -43,9 +46,10 @@ From the rock root (`deck/rock/`):
 
 ```bash
 pnpm install         # rebuilds node-pty + better-sqlite3 for Electron
-pnpm dev             # compiles library + launches demo (Electron + Vite)
-pnpm build           # production build
+pnpm dev             # compiles lib + launches Rock with hot reload
+pnpm build           # production renderer build
 pnpm start           # preview the production build
+pnpm package:mac     # build Rock.app + .dmg + .zip
 ```
 
 Or from this folder (`deck/rock/base/`):
@@ -57,46 +61,54 @@ pnpm build
 pnpm start
 ```
 
-Both routes work. The rock-root commands proxy to this
-package via `pnpm --filter @cluesurf/rock-demo <script>`.
+Both routes work. The rock-root commands proxy here via
+`pnpm --filter @cluesurf/rock-base <script>`.
 
 `pnpm dev` first compiles the parent `@cluesurf/rock`
 library (`pnpm make` runs `tsc + tsc-alias` to populate
-`../host/`), then launches the Electron app with hot
-reload on the renderer.
+`../host/`), then launches the Electron app with hot reload
+on the renderer.
 
-## How it works
+## How the JIT layout works
 
-1. `boot/main.ts` builds an inline `defineWorkspace({...})`,
-   compiles it (`compileWorkspace`), spawns a PTY per slab
-   via `TerminalManager`, and wires the IPC bridge with
-   `wireTerminalMain`.
-2. `boot/preload.ts` calls `makeTerminalApi()` and exposes
-   it at `window.app.terminal` plus a small custom channel
-   for the slab-ID map.
-3. `code/app.tsx` mounts `<TerminalApiProvider>`,
-   `<TerminalEvents>`, and renders a JSX layout +
-   sidebar using `<Split>`, `<Slab>`, `<SidebarSection>`,
-   `<SlabButton>` from the library.
-4. xterm.js renders the PTY output inside each `<Slab>`.
+1. `boot/index.ts` (main process) calls `findRockFolders` to
+   locate `.rock/`, then `bundleUserModule` (esbuild) to
+   bundle `layout.tsx` into ESM. The compiled code is
+   passed to `boot()` as `userBundles['layout.js']`.
+2. `boot()` (in the library) registers a custom `rock://`
+   protocol and an IPC method `rock:get-user-bundles`.
+3. The renderer mounts `<App />`. `mount()` first calls
+   `installExternalBridge()` to expose React + the face
+   surface on `globalThis.__rock__`.
+4. `<App />` queries `window.app.getUserBundles()`. If
+   `'layout.js'` is in the list, it dynamic-imports
+   `rock://user/layout.js`. The compiled bundle's
+   `import { Slab } from '@cluesurf/rock/face'` resolves
+   via shim modules that read from `globalThis.__rock__`,
+   so React isn't loaded twice.
+5. If no user layout exists, `<App />` renders a default
+   single-shell dock so the app is still usable.
+
+See `code/base.tsx` for the loader and the lib's
+`code/face/external-bridge.ts` + `code/node/layout-bundle.ts`
+for the bundling and bridging code.
 
 ## Troubleshooting
 
-- **`posix_spawnp failed`** when a slab tries to spawn:
-  `node-pty`'s `spawn-helper` binary lost its execute
-  bit during pnpm install. Run `pnpm fix-spawn-helper`
-  (already wired into `predev` / `prestart`).
-- **`node-pty` or `better-sqlite3` fails to load** with
-  a `NODE_MODULE_VERSION` mismatch: the prebuilt binary
-  doesn't match your Electron version. Run
-  `pnpm rebuild-native` (uses `@electron/rebuild` via
-  `pnpm dlx`, no permanent dev-dep needed).
-- **Black window on launch**: parent library hasn't been
-  built. Run `pnpm make` in `..` then retry.
-- **Slabs show "not found"**: the slab-map bridge
-  (`SlabMapBridge` in `app.tsx`) didn't fire. Check the
-  Electron main process console for `did-finish-load`
-  errors.
+- **`posix_spawnp failed`** on slab spawn: `node-pty`'s
+  `spawn-helper` binary lost its execute bit. Run
+  `pnpm fix-spawn-helper` (already wired into `predev` /
+  `prestart`).
+- **`node-pty` or `better-sqlite3` fails with
+  `NODE_MODULE_VERSION` mismatch**: prebuilt binary doesn't
+  match your Electron version. Run `pnpm rebuild-native`.
+- **Black window on launch**: parent library wasn't built.
+  Run `pnpm make` in `..` and retry.
+- **`rock: shared module not provided by renderer: <id>`**:
+  your `.rock/layout.tsx` imports something Rock doesn't
+  expose to JIT bundles. Either drop the import or call
+  `extendExternalBridge({ '<id>': <module> })` in your
+  custom `mount()` to register it.
 
 ## License
 

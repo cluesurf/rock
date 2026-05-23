@@ -1,8 +1,16 @@
 packages:
   - base
 
+# pnpm + electron-builder compatibility.
+# electron-builder cannot follow pnpm's symlinked node_modules
+# layout when copying framework bundles inside Electron.app.
+# Hoisted mode mirrors npm's flat node_modules and is the
+# documented workaround.
+nodeLinker: hoisted
+
 allowBuilds:
   better-sqlite3: true
   electron: true
+  electron-winstaller: false
   esbuild: true
   node-pty: true
