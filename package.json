@@ -1,0 +1,68 @@
+{
+  "name": "@cluesurf/rock",
+  "description": "Programmable terminal workspace library",
+  "version": "0.0.0",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "main": "./host/index.js",
+  "types": "./host/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./host/index.d.ts",
+      "default": "./host/index.js"
+    },
+    "./*": {
+      "types": "./host/*.d.ts",
+      "default": "./host/*.js"
+    }
+  },
+  "files": ["host"],
+  "scripts": {
+    "make": "rm -rf host && tsc && tsc-alias",
+    "scan": "concurrently --kill-others \"tsc -w\" \"tsc-alias -w\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint --ext .ts,.tsx ./code --fix"
+  },
+  "peerDependencies": {
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-search": "^0.15.0",
+    "@xterm/addon-web-links": "^0.11.0",
+    "@xterm/xterm": "^5.5.0",
+    "better-sqlite3": "^11.0.0",
+    "electron": ">=30.0.0",
+    "node-pty": "^1.0.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "zustand": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@xterm/addon-fit": { "optional": true },
+    "@xterm/addon-search": { "optional": true },
+    "@xterm/addon-web-links": { "optional": true },
+    "@xterm/xterm": { "optional": true },
+    "better-sqlite3": { "optional": true },
+    "electron": { "optional": true },
+    "node-pty": { "optional": true },
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
+    "zustand": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "concurrently": "^9.0.0",
+    "tsc-alias": "^1.8.10",
+    "typescript": "^5.4.5",
+    "vitest": "^2.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "node-pty"
+    ]
+  }
+}
