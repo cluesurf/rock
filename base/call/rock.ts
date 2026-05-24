@@ -100,22 +100,48 @@ async function callOrDie(cmd: string, args?: unknown): Promise<unknown> {
 // Commands
 // ────────────────────────────────────────────────────────
 
+/**
+ * Probe whether a GUI Rock is actually accepting IPC.
+ *
+ * Just checking `existsSync(SOCKET)` is not enough — a
+ * crashed previous run can leave the socket file behind
+ * with no listener. We actually try to connect with a
+ * short timeout; only a successful connect counts as
+ * "the GUI is up."
+ */
+function isGuiRunning(): Promise<boolean> {
+  if (!existsSync(SOCKET)) return Promise.resolve(false)
+  return new Promise(resolveP => {
+    const conn = createConnection(SOCKET)
+    let done = false
+    const finish = (ok: boolean) => {
+      if (done) return
+      done = true
+      conn.destroy()
+      resolveP(ok)
+    }
+    conn.setTimeout(500)
+    conn.on('connect', () => finish(true))
+    conn.on('error', () => finish(false))
+    conn.on('timeout', () => finish(false))
+  })
+}
+
 async function cmdOpen(targetPath: string): Promise<void> {
   if (!existsSync(targetPath)) {
     throw new Error(`not a directory: ${targetPath}`)
   }
   const abs = isAbsolute(targetPath) ? targetPath : resolve(targetPath)
 
-  // Probe whether a GUI Rock is actually running. The
-  // bash launcher EXECs Rock.app's bundled Electron in
-  // Node mode (ELECTRON_RUN_AS_NODE=1) to run this very
-  // script, which macOS LaunchServices can mis-detect as
-  // "Rock.app is running" even though there's no GUI.
-  // That would make a plain `open -a Rock --args …` a
-  // silent no-op (focus the non-existent GUI, drop the
-  // --args). The IPC socket only exists when the actual
-  // GUI process is up, so it's a reliable signal.
-  const guiRunning = existsSync(SOCKET)
+  // The bash launcher EXECs Rock.app's bundled Electron
+  // in Node mode (ELECTRON_RUN_AS_NODE=1) to run this
+  // very script, which macOS LaunchServices can mis-
+  // detect as "Rock.app is running" even though there's
+  // no GUI. That would make a plain `open -a Rock` a
+  // silent no-op (it focuses the phantom instance, drops
+  // the --args). So we probe IPC directly to learn
+  // whether a real GUI is up.
+  const guiRunning = await isGuiRunning()
 
   if (guiRunning) {
     // GUI is up: bring it to the foreground. Plain
@@ -128,17 +154,28 @@ async function cmdOpen(targetPath: string): Promise<void> {
     return
   }
 
-  // No GUI: force a new instance with -n so Launch-
-  // Services can't decide that Node-mode Rock counts as
-  // "already running" and skip the GUI launch.
-  const proc = spawn('open', ['-n', '-a', 'Rock', '--args', `--cwd=${abs}`], {
-    stdio: 'inherit',
+  // No GUI. Launch one DIRECTLY by re-execing Rock.app's
+  // bundled Electron without ELECTRON_RUN_AS_NODE. We
+  // can't reliably go through `open -n -a Rock` here
+  // because LaunchServices sometimes treats the Node-mode
+  // child (this very process) as Rock-is-running and the
+  // request is silently dropped even with -n.
+  //
+  // process.execPath is the bundled Electron binary
+  // (Contents/MacOS/Rock) since the bash launcher EXECs
+  // it as ELECTRON_RUN_AS_NODE=1. Clearing that env var
+  // tells the spawned copy to start as a normal GUI app.
+  const env = { ...process.env }
+  delete env.ELECTRON_RUN_AS_NODE
+  const child = spawn(process.execPath, [`--cwd=${abs}`], {
+    stdio: 'ignore',
     detached: true,
+    env,
   })
-  proc.on('error', err => {
+  child.on('error', err => {
     throw new Error(`failed to launch Rock.app: ${err.message}`)
   })
-  proc.unref()
+  child.unref()
 }
 
 function cmdBind(): void {
@@ -279,11 +316,29 @@ async function main(): Promise<void> {
   // standard Node-style slice(2) is correct.
   const argv = process.argv.slice(2)
 
-  // Subtle: `rock` with no args opens at $PWD. Yargs would
-  // normally show help; intercept that case first.
+  // Subtle: `rock` with no args opens at $PWD. Yargs
+  // would normally show help; intercept that case first.
+  // Also accept `rock <path>` as a shorthand for
+  // `rock open <path>` — common muscle memory.
   if (argv.length === 0) {
     await cmdOpen(process.cwd())
     return
+  }
+  if (argv.length === 1 && argv[0]) {
+    const arg = argv[0]
+    const looksLikePath =
+      arg === '.' ||
+      arg.startsWith('./') ||
+      arg.startsWith('../') ||
+      arg.startsWith('/') ||
+      arg.startsWith('~')
+    if (looksLikePath) {
+      const expanded = arg.startsWith('~')
+        ? join(homedir(), arg.slice(1))
+        : arg
+      await cmdOpen(expanded)
+      return
+    }
   }
 
   await yargs(argv)
