@@ -8,7 +8,7 @@
  * subscriber the renderer needs.
  */
 
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import {
   TERMINAL_EVENT_CHANNEL,
   TERMINAL_REQUEST_CHANNEL,
@@ -91,8 +91,28 @@ const api = {
   async saveTree(tree: unknown): Promise<void> {
     await ipcRenderer.invoke('rock:save-tree', tree)
   },
+  // Cmd+, in the renderer calls this. Ensures .rock/ exists
+  // at the launched cwd, flushes current state to
+  // base.local.json, and opens the file in the user's
+  // default editor.
+  async openSettings(): Promise<void> {
+    await ipcRenderer.invoke('rock:open-settings')
+  },
   async toggleFullscreen(): Promise<void> {
     await ipcRenderer.invoke('rock:toggle-fullscreen')
+  },
+  // Electron 32+ removed the legacy `File.path` property
+  // that older browsers / Electron versions exposed on
+  // File objects originating from the filesystem. The
+  // replacement is `webUtils.getPathForFile(file)`, which
+  // can only be reached from a preload-bridged renderer.
+  // Used by the dock's paste / drop handlers so pasting
+  // a Finder-copied image (or dragging one in) inserts
+  // its shell-escaped path into the terminal — matching
+  // iTerm2's behavior, which Claude Code uses to pick
+  // up attachments.
+  getPathForFile(file: File): string {
+    return webUtils.getPathForFile(file)
   },
 }
 

@@ -22,7 +22,8 @@ import {
   type BrowserWindowConstructorOptions,
 } from 'electron'
 import path from 'node:path'
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
+import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { compileWorkspace } from '@/base/compile-workspace'
 import type { WorkspaceDefinition } from '@/base/define'
@@ -115,6 +116,17 @@ export interface BootInput {
    * `await import('rock://user/layout.js')`.
    */
   userBundles?: Record<string, string>
+  /**
+   * Default working directory used for any slab whose
+   * config doesn't specify one. Set by the host shell to
+   * the project root the user launched at (e.g. the
+   * `--cwd=` arg `rock` passed when starting Rock.app).
+   * Without this, PTYs default to `process.cwd()` of the
+   * Electron main process, which is the .app bundle path
+   * and breaks tools like `claude --resume` that look up
+   * sessions by encoding the current cwd.
+   */
+  defaultCwd?: string
 }
 
 export interface BootWindowOptions {
@@ -179,8 +191,16 @@ export async function boot(input: BootInput): Promise<AppHandle> {
   // Per-project persisted state — restores tabs + cwds
   // from the last session if available. Lives at
   // <projectRoot>/.rock/base.json. Outside any project,
-  // rockFolderPath is null and persistence is a no-op.
-  const rockFolderPath = findProjectRockFolder(process.cwd())
+  // Walk up from the project root (the cwd the user
+  // launched Rock at via the `rock` CLI or via the
+  // `defaultCwd` passed by the host). Falls back to
+  // process.cwd() — which inside Rock.app is the bundle
+  // path, useless for finding the project's `.rock/`.
+  // Without this, ROCK_CWD / `rock <path>` would fail to
+  // locate an existing .rock/ on startup.
+  let rockFolderPath = findProjectRockFolder(
+    input.defaultCwd ?? process.cwd(),
+  )
   const persisted = rockFolderPath
     ? loadProjectState(rockFolderPath)
     : null
@@ -213,13 +233,28 @@ export async function boot(input: BootInput): Promise<AppHandle> {
   // (eg cwd reports during a fast cd loop) into a single
   // file write.
   let saveTimer: NodeJS.Timeout | null = null
+
+  // Re-detect a project `.rock/` on every save attempt.
+  // The user may have created one after launch (via
+  // `rock bind`, `mkdir .rock`, or any other tool). Once
+  // found, the path sticks and subsequent saves go
+  // there. Cheap (fs.existsSync walking up a few dirs)
+  // and skipped entirely once cached.
+  function ensureRockFolder(): string | null {
+    if (rockFolderPath) return rockFolderPath
+    rockFolderPath = findProjectRockFolder(
+      input.defaultCwd ?? process.cwd(),
+    )
+    return rockFolderPath
+  }
+
   function scheduleSave() {
-    if (!rockFolderPath) return
+    if (!ensureRockFolder()) return
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(persistNow, 400)
   }
   function persistNow() {
-    if (!rockFolderPath) return
+    if (!ensureRockFolder()) return
     if (saveTimer) {
       clearTimeout(saveTimer)
       saveTimer = null
@@ -329,7 +364,13 @@ export async function boot(input: BootInput): Promise<AppHandle> {
         workspaceId: compiled.workspace.id,
         tabId: compiled.workspace.tabs[0]!.id,
         name,
-        cwd: options.cwd ?? cfg?.cwd,
+        // Fall through: explicit call-site override →
+        // slab's own cwd → host's defaultCwd. The last
+        // step is critical: without it `claude --resume`
+        // and any other tool that resolves state by cwd
+        // breaks because PTYs would land in the .app
+        // bundle path.
+        cwd: options.cwd ?? cfg?.cwd ?? input.defaultCwd,
         program: cfg?.program,
         args: options.args ?? cfg?.args,
         command: options.command ?? cfg?.command,
@@ -495,7 +536,7 @@ export async function boot(input: BootInput): Promise<AppHandle> {
               workspaceId: slab.workspaceId,
               tabId: slab.tabId,
               name: slab.name,
-              cwd: slab.cwd,
+              cwd: slab.cwd ?? input.defaultCwd,
               program: slab.program || undefined,
               command: slab.command,
               env: slab.env,
@@ -596,6 +637,63 @@ export async function boot(input: BootInput): Promise<AppHandle> {
     },
   )
 
+  // IPC: open the per-project settings file in the user's
+  // default editor (Cmd+, in the renderer). If the project
+  // has no .rock/ yet, create one at the launched cwd and
+  // wire it into the live persistence path so subsequent
+  // edits also save there. Then flush current state (live
+  // tree + cwds + window bounds) so the file the user opens
+  // already contains real, current data — not a stale or
+  // empty boilerplate.
+  ipcMain.handle('rock:open-settings', async () => {
+    const folder =
+      rockFolderPath ??
+      path.join(input.defaultCwd ?? process.cwd(), '.rock')
+    mkdirSync(folder, { recursive: true })
+    if (!rockFolderPath) {
+      rockFolderPath = folder
+    }
+    persistNow()
+    const fileLocal = path.join(folder, 'base.local.json')
+
+    // Editor selection order:
+    //   1. $ROCK_EDITOR  (Rock-specific override)
+    //   2. $VISUAL       (Unix convention for GUI editor)
+    //   3. $EDITOR       (Unix convention)
+    //   4. common GUI editors in PATH: code, cursor, subl
+    //   5. fall back to macOS default app via `open`
+    // We DON'T use shell.openPath because it always defers
+    // to the OS file association (which on most machines
+    // is whatever the user set in Finder's "Open with",
+    // not necessarily their dev editor).
+    //
+    // Important: spawn through the user's LOGIN shell so
+    // PATH has shell-rc additions. Electron apps launched
+    // from Finder inherit a stripped PATH from launchd
+    // that often doesn't include /usr/local/bin or
+    // ~/.local/bin where `code` is symlinked.
+    const userShell = process.env.SHELL ?? '/bin/zsh'
+    const explicit =
+      process.env.ROCK_EDITOR ??
+      process.env.VISUAL ??
+      process.env.EDITOR
+    const chain = explicit ? [explicit] : ['code', 'cursor', 'subl']
+    // Shell-escape the file path (single-quote, escape any
+    // embedded single quote). Filenames inside a project's
+    // .rock/ dir won't normally contain quotes, but it's
+    // cheap insurance.
+    const quoted = `'${fileLocal.replace(/'/g, `'\\''`)}'`
+    const script =
+      chain
+        .map(cmd => `command -v ${cmd} >/dev/null 2>&1 && exec ${cmd} ${quoted}`)
+        .join(' || ') + ` || exec open ${quoted}`
+    const child = spawn(userShell, ['-lc', script], {
+      stdio: 'ignore',
+      detached: true,
+    })
+    child.unref()
+  })
+
   // IPC: cwd change from Dock's OSC 7 handler. Update the
   // live map + schedule a state save.
   ipcMain.handle(
@@ -679,7 +777,7 @@ export async function boot(input: BootInput): Promise<AppHandle> {
       workspaceId: compiled.workspace.id,
       tabId,
       name,
-      cwd: opts.cwd,
+      cwd: opts.cwd ?? input.defaultCwd,
       program: opts.program,
       command: opts.command,
       cols: 80,
@@ -774,16 +872,17 @@ export async function boot(input: BootInput): Promise<AppHandle> {
         const id = createId('slab')
         compiled.slabIdByName[name] = id
         const tabId = compiled.workspace.tabs[0]!.id
+        const effectiveCwd = cwd ?? input.defaultCwd
         await manager.createSlab({
           id,
           workspaceId: compiled.workspace.id,
           tabId,
           name,
-          cwd,
+          cwd: effectiveCwd,
           cols: 80,
           rows: 24,
         })
-        liveCwds.set(id, cwd ?? process.cwd())
+        liveCwds.set(id, effectiveCwd ?? process.cwd())
         for (const w of wins) {
           if (!w.isDestroyed()) {
             w.webContents.send('rock:slab-map', compiled.slabIdByName)

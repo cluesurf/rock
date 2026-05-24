@@ -126,6 +126,41 @@ export function appendNode(
   })
 }
 
+/** Add a node as the FIRST child of `groupId`. No-op if
+ *  the group doesn't exist or the target isn't a group. */
+export function prependChild(
+  tree: TreeNode[],
+  node: TreeNode,
+  groupId: string,
+): TreeNode[] {
+  return tree.map(n => {
+    if (n.kind !== 'group') return n
+    if (n.id === groupId) {
+      return { ...n, children: [node, ...n.children], collapsed: false }
+    }
+    return { ...n, children: prependChild(n.children, node, groupId) }
+  })
+}
+
+/** Insert `node` as the sibling immediately AFTER `targetId`,
+ *  walking into nested groups to find it. No-op if not found. */
+export function insertNodeAfter(
+  tree: TreeNode[],
+  node: TreeNode,
+  targetId: string,
+): TreeNode[] {
+  const i = tree.findIndex(n => n.id === targetId)
+  if (i >= 0) {
+    const next = [...tree]
+    next.splice(i + 1, 0, node)
+    return next
+  }
+  return tree.map(n => {
+    if (n.kind !== 'group') return n
+    return { ...n, children: insertNodeAfter(n.children, node, targetId) }
+  })
+}
+
 /** Remove a node by id. Returns the new tree + the removed
  *  node (so callers can re-insert it elsewhere). */
 export function removeNode(
@@ -200,6 +235,48 @@ export function toggleCollapsed(
       return { ...node, children: toggleCollapsed(node.children, groupId) }
     }
     return node
+  })
+}
+
+/** Set every group in `tree` to the same collapsed state.
+ *  Used by the global Cmd+→ / Cmd+← bindings to fold
+ *  or unfold the whole tree in one action. */
+export function setAllCollapsed(
+  tree: TreeNode[],
+  collapsed: boolean,
+): TreeNode[] {
+  return tree.map(node => {
+    if (node.kind !== 'group') return node
+    return {
+      ...node,
+      collapsed,
+      children: setAllCollapsed(node.children, collapsed),
+    }
+  })
+}
+
+/** Set the targeted group AND every descendant group to
+ *  the same collapsed state. Per-row Cmd+→ / Cmd+← acts
+ *  on a focused group; this lets the user fold/unfold a
+ *  whole subtree at once instead of clicking each branch. */
+export function setCollapsedDeep(
+  tree: TreeNode[],
+  groupId: string,
+  collapsed: boolean,
+): TreeNode[] {
+  return tree.map(node => {
+    if (node.kind !== 'group') return node
+    if (node.id === groupId) {
+      return {
+        ...node,
+        collapsed,
+        children: setAllCollapsed(node.children, collapsed),
+      }
+    }
+    return {
+      ...node,
+      children: setCollapsedDeep(node.children, groupId, collapsed),
+    }
   })
 }
 

@@ -23,12 +23,38 @@ export type DockProps = {
 }
 
 const DEFAULT_OPTIONS: ITerminalOptions = {
-  cursorBlink: true,
+  // Blinking off by default — the visual jitter is more
+  // distracting than helpful, especially when paired with
+  // a long-running CLI (Claude Code, watchers) that the
+  // user is reading more than typing into. Override with
+  // `terminalOptions={{ cursorBlink: true }}` per Dock if
+  // needed.
+  cursorBlink: false,
   allowProposedApi: true,
   convertEol: false,
   // Soft cap memory by keeping ~10k lines of scrollback per
   // slab. Override via the `terminalOptions` prop on Dock.
   scrollback: 10000,
+  // The #1 reason xterm.js terminals look "too bright"
+  // vs iTerm2: by default xterm swaps any bold text into
+  // the BRIGHT color slot (e.g. white → brightWhite,
+  // green → brightGreen). Bold prompts, command headings,
+  // ls output — everything bold — fires this swap.
+  // iTerm2 ships with the equivalent toggle OFF. Bold
+  // text now keeps its color and only gets weight.
+  drawBoldTextInBrightColors: false,
+  // Base body at weight 300 (Noto Sans Mono Light, loaded
+  // via Google Fonts in index.html). Pairs with weight
+  // 600 for bold. xterm's canvas renderer can't do macOS
+  // subpixel AA, so leaning on a lighter weight is the
+  // best way to get an iTerm2-like soft feel.
+  fontWeight: 300,
+  fontWeightBold: 600,
+  // Tells xterm to not boost text contrast above what the
+  // theme specifies. Default is 1 (off) so this is a
+  // no-op safeguard against future xterm version changes
+  // turning it on.
+  minimumContrastRatio: 1,
 }
 
 /**
@@ -54,7 +80,16 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
-  const pendingResizeRef = useRef<number | null>(null)
+  // setTimeout id, not requestAnimationFrame id — we now
+  // debounce ~120ms so transient reflows during sidebar
+  // drag-and-drop don't fire fit() with intermediate
+  // (smaller) widths. xterm doesn't unwrap already-written
+  // output when the cols come back, so a brief mid-drag
+  // narrow re-fit visibly garbles the terminal.
+  const pendingResizeRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Cache of the last (cols, rows) we sent to the PTY so
+  // we can skip no-op resize messages.
+  const lastSentSizeRef = useRef<{ cols: number; rows: number } | null>(null)
 
   // Refocus this terminal when its slab becomes active —
   // but DON'T steal focus from the sidebar tree. If the
@@ -135,6 +170,39 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
 
     term.loadAddon(fit)
     term.loadAddon(search)
+
+    // App-level shortcuts (Cmd+Backspace = close tab,
+    // Cmd+T = new tab, Cmd+Shift+G = new group, Cmd+,
+    // = open settings, etc.) need to bubble up to the
+    // window-level Keys listener even when the terminal
+    // has focus. xterm's default keyboard handler eats
+    // every keystroke and sends it to the PTY. Returning
+    // false from this handler tells xterm "don't process
+    // this key", which lets the browser bubble it
+    // naturally.
+    term.attachCustomKeyEventHandler((event) => {
+      if (event.type !== 'keydown') return true
+      const mod = event.metaKey || event.ctrlKey
+      if (!mod) return true
+      // Allow these specific app shortcuts through.
+      // Everything else (Cmd+C copy, Cmd+V paste, Cmd+A
+      // select-all, etc.) stays with xterm's default
+      // behavior so terminal usage isn't disrupted.
+      const k = event.key.toLowerCase()
+      if (
+        event.key === 'Backspace' ||
+        event.key === 'Delete' ||
+        k === 't' ||
+        k === 'w' ||
+        k === ',' ||
+        k === 'b' ||
+        (event.shiftKey && k === 'g') ||
+        (event.shiftKey && (k === ']' || k === '['))
+      ) {
+        return false
+      }
+      return true
+    })
     // Custom link provider: detects URLs + local paths in
     // the buffer and renders them with a permanent
     // underline (xterm draws it via canvas, so it's always
@@ -172,8 +240,29 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
     // executes each line immediately on hit-Enter. Easy
     // path to disaster (`rm -rf /` snuck into a snippet).
     // Intercept the native paste event and require confirm.
+    //
+    // Also handle file pastes (Cmd+C a file in Finder →
+    // Cmd+V here). Electron exposes `File.path` on File
+    // objects originating from the filesystem; we paste
+    // a shell-escaped path instead of the binary blob,
+    // matching iTerm2's behavior.
     const pasteHandler = (event: ClipboardEvent) => {
-      const text = event.clipboardData?.getData('text') ?? ''
+      const cd = event.clipboardData
+      if (!cd) return
+
+      // File paste first — preempts the text branch so a
+      // copied Finder file doesn't accidentally trigger
+      // the multi-line warning via its text fallback.
+      const files = collectClipboardFilePaths(cd)
+      if (files.length > 0) {
+        event.preventDefault()
+        event.stopPropagation()
+        const text = files.map(escapeShellPath).join(' ')
+        termRef.current?.paste(text)
+        return
+      }
+
+      const text = cd.getData('text') ?? ''
       const newlineCount = (text.match(/\n/g) ?? []).length
       // Trailing newline (one terminating LF) is harmless;
       // 2+ newlines = multi-command paste = danger.
@@ -188,6 +277,29 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
       }
     }
     container.addEventListener('paste', pasteHandler, true)
+
+    // Drag-and-drop a file (or files) from Finder onto the
+    // terminal — same outcome as a file paste: insert the
+    // shell-escaped path(s). Without this, the browser's
+    // default drop behavior navigates the renderer to the
+    // dropped file's URL, which would crash the dock.
+    const dragOverHandler = (event: DragEvent) => {
+      if (event.dataTransfer?.types.includes('Files')) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+    }
+    const dropHandler = (event: DragEvent) => {
+      if (!event.dataTransfer) return
+      const paths = collectDataTransferFilePaths(event.dataTransfer)
+      if (paths.length === 0) return
+      event.preventDefault()
+      event.stopPropagation()
+      const text = paths.map(escapeShellPath).join(' ')
+      termRef.current?.paste(text)
+    }
+    container.addEventListener('dragover', dragOverHandler, true)
+    container.addEventListener('drop', dropHandler, true)
 
     termRef.current = term
     fitRef.current = fit
@@ -207,9 +319,31 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
 
     const sendResize = () => {
       if (!fitRef.current || !termRef.current) return
+      // If the container has no visible size (display:none
+      // on an inactive tab, parent collapsed, etc.) the
+      // FitAddon computes cols ≈ 1 and the PTY would wrap
+      // all subsequent output at 1 column. xterm doesn't
+      // unwrap on the next resize, so the next time the
+      // tab becomes visible the user sees the squeezed
+      // output stuck. Skip until we have real dimensions.
+      const w = container.clientWidth
+      const h = container.clientHeight
+      if (w === 0 || h === 0) return
       fitRef.current.fit()
       const cols = termRef.current.cols
       const rows = termRef.current.rows
+      // Sanity floor — even with non-zero dims, a too-small
+      // measurement is almost certainly a transient mid-
+      // layout state, not what the user wants the PTY to
+      // commit to.
+      if (cols < 10 || rows < 3) return
+      const last = lastSentSizeRef.current
+      // Skip if the size hasn't actually changed since we
+      // last told the PTY. Stops redundant resize messages
+      // and stops the PTY from re-wrapping its scrollback
+      // when nothing about the layout actually moved.
+      if (last && last.cols === cols && last.rows === rows) return
+      lastSentSizeRef.current = { cols, rows }
       void api.request({
         type: 'slab:resize',
         payload: { slabId, cols, rows },
@@ -218,9 +352,13 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
 
     const observer = new ResizeObserver(() => {
       if (pendingResizeRef.current !== null) {
-        cancelAnimationFrame(pendingResizeRef.current)
+        clearTimeout(pendingResizeRef.current)
       }
-      pendingResizeRef.current = requestAnimationFrame(sendResize)
+      // 120ms debounce. Long enough that sidebar drag
+      // reflows finish before we fit (so xterm doesn't get
+      // re-fit to a transient narrow width). Short enough
+      // that an actual user resize feels responsive.
+      pendingResizeRef.current = setTimeout(sendResize, 120)
     })
     observer.observe(container)
 
@@ -230,12 +368,15 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
       unsubscribe()
       observer.disconnect()
       container.removeEventListener('paste', pasteHandler, true)
+      container.removeEventListener('dragover', dragOverHandler, true)
+      container.removeEventListener('drop', dropHandler, true)
       if (pendingResizeRef.current !== null) {
-        cancelAnimationFrame(pendingResizeRef.current)
+        clearTimeout(pendingResizeRef.current)
       }
       term.dispose()
       termRef.current = null
       fitRef.current = null
+      lastSentSizeRef.current = null
     }
   }, [slabId, api, terminalOptions, theme])
 
@@ -422,4 +563,71 @@ function makeRockLinkProvider(term: Terminal): ILinkProvider {
       callback(links.length > 0 ? links : undefined)
     },
   }
+}
+
+// ────────────────────────────────────────────────────────
+// File-paste / file-drop helpers
+// ────────────────────────────────────────────────────────
+
+/**
+ * Pull the original filesystem path off a clipboard-pasted
+ * or drag-dropped File object.
+ *
+ * Electron 32+ removed the `File.path` extension property
+ * for security reasons. The official replacement is
+ * `webUtils.getPathForFile(file)`, which we expose to the
+ * renderer through the preload bridge as
+ * `window.app.getPathForFile`. Older Electron versions
+ * (and any non-Electron Chromium build) fall back to the
+ * legacy `file.path` property.
+ */
+type LegacyFileWithPath = File & { path?: string }
+type RockPreloadBridge = {
+  getPathForFile?: (file: File) => string
+}
+
+function pathForFile(file: File): string | undefined {
+  const bridge = (globalThis as unknown as { app?: RockPreloadBridge }).app
+  const fromBridge = bridge?.getPathForFile?.(file)
+  if (fromBridge) return fromBridge
+  return (file as LegacyFileWithPath).path
+}
+
+/**
+ * Collect filesystem paths from a clipboard event. Returns
+ * [] if the clipboard has no files. iTerm2-equivalent
+ * behavior: Cmd+C a file in Finder → Cmd+V here pastes
+ * the path.
+ */
+function collectClipboardFilePaths(cd: DataTransfer): string[] {
+  const out: string[] = []
+  for (const f of Array.from(cd.files ?? [])) {
+    const path = pathForFile(f)
+    if (path) out.push(path)
+  }
+  return out
+}
+
+/**
+ * Same as the clipboard helper but for a drag-and-drop
+ * event's DataTransfer. Used by the dock's drop handler so
+ * Finder → terminal drag pastes the shell-escaped path.
+ */
+function collectDataTransferFilePaths(dt: DataTransfer): string[] {
+  const out: string[] = []
+  for (const f of Array.from(dt.files ?? [])) {
+    const path = pathForFile(f)
+    if (path) out.push(path)
+  }
+  return out
+}
+
+/**
+ * Shell-escape a filesystem path the way iTerm2 / bash
+ * tab-completion does. Backslash-escapes whitespace plus
+ * any character with special meaning to a POSIX shell.
+ * Round-trips through `cd`, `cat`, etc. unchanged.
+ */
+function escapeShellPath(p: string): string {
+  return p.replace(/([\s"'\\$`!()&;*?<>|{}[\]])/g, '\\$1')
 }

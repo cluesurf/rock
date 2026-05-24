@@ -116,6 +116,12 @@ async function main() {
     name: 'Rock',
     workspace: chosenWorkspace,
     userBundles,
+    // Default any slab without an explicit cwd to the
+    // project root this launch was opened at. Without
+    // this, PTYs land in the .app bundle path and tools
+    // that resolve state by cwd (claude --resume, git,
+    // pnpm, etc.) silently look in the wrong place.
+    defaultCwd: startCwd,
   })
 }
 

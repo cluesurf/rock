@@ -84,7 +84,7 @@
        edge-to-edge inside the sidebar. Per-row left
        indent comes from inline paddingLeft on each
        NodeRow (depth-aware). */
-    @apply flex flex-col text-sm overflow-auto;
+    @apply flex flex-col text-[15px] overflow-auto;
     color: var(--rock-fg, #e4e4e7);
   }
   [data-rock-branch] {
@@ -92,12 +92,13 @@
   }
   [data-rock-branch-header] {
     @apply flex items-center gap-1 w-full py-1
-           text-xs uppercase tracking-wider
+           text-[15px] uppercase tracking-wider
            cursor-pointer select-none border-0 text-left;
-    /* Group label text — 2 shades darker than the leaf
-       labels (which are zinc-100) so groups read as
-       headers, not items. zinc-300. */
-    color: #d4d4d8;
+    /* Group label text. zinc-400 — sits between the
+       leaf labels and the zinc-500 muted body. Reads
+       as a quieter header without going so dim that the
+       label stops being legible against zinc-950. */
+    color: #a1a1aa;
     background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 8%, transparent);
     transition: background-color 120ms;
   }
@@ -134,7 +135,7 @@
 
   [data-rock-leaf] {
     @apply flex items-center py-1
-           text-sm text-left bg-transparent border-0 cursor-pointer
+           text-[15px] font-light text-left bg-transparent border-0 cursor-pointer
            select-none;
     /* HARD edge-to-edge — block-level with 100% width so
        the bg fills regardless of button defaults; zero
@@ -146,9 +147,13 @@
     border-radius: 0 !important;
     margin: 0 !important;
     text-transform: none;
-    /* Leaf default — zinc-100 ish. Brighter than groups
-       (zinc-200) but still below selected (pure white). */
-    color: #f4f4f5;
+    /* Leaf color INHERITS the tree's --rock-fg so it
+       auto-tracks whatever foreground tone is current
+       (theme tuning, dark/light, etc.). Was hard-pinned
+       to zinc-100 (#f4f4f5) which read brighter than any
+       reasonable foreground and made every leaf look
+       bold even though weight was 400. */
+    color: inherit;
     transition: background-color 100ms, color 100ms;
   }
   [data-rock-tree] { user-select: none; -webkit-user-select: none; }
@@ -162,14 +167,41 @@
     background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 16%, transparent);
     color: #ffffff;
   }
-  [data-rock-leaf-dot] {
-    @apply text-[10px] leading-none;
+
+  /* Selected row — applies to BOTH leaf and group header.
+     bg fg @ 24% (~zinc-700), one Tailwind tier brighter
+     than the active-leaf bg (16% / ~zinc-800), so the
+     selected state always stands out from the active-tab
+     state. The bg is identical for groups and leaves —
+     no place-of-row-in-tree variance. Violet 1px inset
+     ring at 50% reads as "this is selected" without the
+     full intensity of the drop-target ring. */
+  [data-rock-leaf][data-focused='true'],
+  [data-rock-branch][data-focused='true'] > [data-rock-branch-header] {
+    background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 24%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rock-accent, #8b5cf6) 50%, transparent);
   }
-  [data-rock-leaf-dot][data-status='running']  { color: var(--rock-status-running, #10b981); }
-  [data-rock-leaf-dot][data-status='exited']   { color: var(--rock-status-exited, #71717a); }
-  [data-rock-leaf-dot][data-status='failed']   { color: var(--rock-status-failed, #f43f5e); }
-  [data-rock-leaf-dot][data-status='starting'] { color: var(--rock-status-starting, #eab308); }
-  [data-rock-leaf-dot][data-status='idle']     { color: var(--rock-status-idle, #71717a); }
+  /* When a leaf is BOTH the active running tab AND the
+     focused selection, hold the focused bg (24%) so
+     selection still reads above the active-tab style. */
+  [data-rock-leaf][data-active='true'][data-focused='true'] {
+    background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 24%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rock-accent, #8b5cf6) 55%, transparent);
+  }
+  [data-rock-leaf-dot] {
+    /* Smaller + 70% opacity so the dot reads as a quiet
+       status indicator, not a focal point. Specific colors
+       below are also one tailwind shade darker than the
+       brand accents (e.g. emerald-600 not emerald-500) for
+       the same reason. */
+    @apply text-[10px] leading-none;
+    opacity: 0.7;
+  }
+  [data-rock-leaf-dot][data-status='running']  { color: var(--rock-status-running, #059669); /* emerald-600 */ }
+  [data-rock-leaf-dot][data-status='exited']   { color: var(--rock-status-exited, #52525b); /* zinc-600 */ }
+  [data-rock-leaf-dot][data-status='failed']   { color: var(--rock-status-failed, #e11d48); /* rose-600 */ }
+  [data-rock-leaf-dot][data-status='starting'] { color: var(--rock-status-starting, #ca8a04); /* yellow-600 */ }
+  [data-rock-leaf-dot][data-status='idle']     { color: var(--rock-status-idle, #52525b);   /* zinc-600 */ }
   [data-rock-leaf-icon] { color: var(--rock-muted, #71717a); }
   [data-rock-leaf-label] { @apply flex-1 truncate; }
   [data-rock-leaf-actions] { @apply ml-auto; }
@@ -261,16 +293,31 @@
     box-shadow: 0 0 0 1px var(--rock-bg, #09090b);
   }
   /* "Inside" drop = drop INTO a group. Full-row tint +
-     accent ring so it's unmistakable. */
+     accent ring so it's unmistakable. Ring at 80% accent
+     (was 100%) so it reads as emphatic but not glowing.
+     Still stronger than the focused-row ring (50%) so a
+     hovered drop target is visually distinct from a
+     merely-selected row. */
   [data-rock-branch][data-drop='inside'] > [data-rock-branch-header] {
     background: color-mix(in srgb, var(--rock-accent, #8b5cf6) 18%, transparent);
-    box-shadow: inset 0 0 0 1px var(--rock-accent, #8b5cf6);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rock-accent, #8b5cf6) 80%, transparent);
   }
-  /* Group child count / running badge. */
+  /* Group child count badge.
+     - COLLAPSED group → zinc-300 (#d4d4d8). One Tailwind
+       tier brighter than the label so it reads as the
+       "this is hidden" signal.
+     - EXPANDED group → zinc-500 (#71717a). Two tiers
+       dimmer than the closed state — count becomes
+       supplementary when children are already visible.
+     Default value here is the EXPANDED tone so the rule
+     below only needs to override the collapsed case. */
   [data-rock-branch-count] {
-    @apply ml-auto text-[10px] tabular-nums;
-    color: var(--rock-muted, #71717a);
+    @apply ml-auto text-[12px] tabular-nums;
+    color: #71717a; /* zinc-500 — open / supplementary */
     padding-left: 6px;
+  }
+  [data-rock-branch][data-collapsed='true'] > [data-rock-branch-header] [data-rock-branch-count] {
+    color: #d4d4d8; /* zinc-300 — closed / primary signal */
   }
   /* In-place rename input. Strictly inherits font + size
      so the text looks identical edit vs not-edit (no

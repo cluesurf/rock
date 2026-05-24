@@ -15,29 +15,36 @@ export const rockDark: RockTheme = {
   name: 'Rock Dark',
   font: '"Noto Sans Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
   background: '#09090b', // zinc-950
-  foreground: '#e4e4e7', // zinc-200
-  cursor: '#a78bfa', // violet-400
+  // Foreground sits between zinc-400 (#a1a1aa) and
+  // zinc-500 (#71717a), nudged closer to zinc-400 so
+  // body text reads as comfortably bright without the
+  // "too white" effect at full zinc-400.
+  foreground: '#9ca0a8', // ~zinc-440
+  cursor: '#a78bfa', // violet-400 — accent stays bright; it's a focus signal
   cursorAccent: '#09090b',
-  selectionBackground: '#3f3f46', // zinc-700 (was zinc-800 — bumped for more contrast on selection)
+  selectionBackground: '#3f3f46', // zinc-700
 
-  // ANSI 16-color palette
-  black: '#27272a', // zinc-800 — visible against zinc-950 bg (was zinc-900, near-invisible)
-  red: '#fb7185', // rose-400 — brighter than rose-500
-  green: '#10b981', // emerald-500
-  yellow: '#facc15', // yellow-400 — brighter than yellow-500 (less gold)
-  blue: '#60a5fa', // blue-400 — brighter than blue-500
-  magenta: '#a78bfa', // violet-400 — brighter than violet-500
-  cyan: '#06b6d4', // cyan-500
-  white: '#e4e4e7', // zinc-200
+  // ANSI 16-color palette — pulled DOWN one Tailwind tier
+  // from the usual 500/400 split. Bare colors are 600 so
+  // they don't glow against zinc-950; brights are the
+  // formerly-default 500 shade.
+  black: '#27272a', // zinc-800 — visible against zinc-950 bg
+  red: '#e11d48', // rose-600
+  green: '#059669', // emerald-600
+  yellow: '#ca8a04', // yellow-600
+  blue: '#2563eb', // blue-600
+  magenta: '#7c3aed', // violet-600
+  cyan: '#0891b2', // cyan-600
+  white: '#9ca0a8', // matches foreground
 
-  brightBlack: '#71717a', // zinc-500 — readable muted gray (was zinc-700, too dark)
-  brightRed: '#fda4af', // rose-300 (bumped to stay one step brighter than red)
-  brightGreen: '#34d399', // emerald-400
-  brightYellow: '#fde047', // yellow-300
-  brightBlue: '#93c5fd', // blue-300
-  brightMagenta: '#c4b5fd', // violet-300
-  brightCyan: '#22d3ee', // cyan-400
-  brightWhite: '#f4f4f5', // zinc-100
+  brightBlack: '#52525b', // zinc-600 — readable muted gray
+  brightRed: '#f43f5e', // rose-500
+  brightGreen: '#10b981', // emerald-500
+  brightYellow: '#eab308', // yellow-500
+  brightBlue: '#3b82f6', // blue-500
+  brightMagenta: '#8b5cf6', // violet-500
+  brightCyan: '#06b6d4', // cyan-500
+  brightWhite: '#d4d4d8', // zinc-300 — was zinc-200; "bright white" is now soft body weight
 
   accent: '#a78bfa', // violet-400 — matches magenta for cohesion
 }

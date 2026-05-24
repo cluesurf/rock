@@ -1,7 +1,154 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { resolve } from 'node:path'
+import type { Plugin } from 'vite'
+import { resolve, join, extname, sep } from 'node:path'
+import { existsSync } from 'node:fs'
+
+/**
+ * Vite plugin that owns module resolution for
+ *   - `@cluesurf/rock`            → ../code/index
+ *   - `@cluesurf/rock/<subpath>`  → ../code/<subpath>
+ *   - `@/<subpath>` from files under ../code/ → ../code/<subpath>
+ *
+ * Same shape as mesh/site/word.surf/home/vite.config.ts's
+ * `workspacePlugin`, scaled down for Rock's one-package
+ * layout. Owning resolution at the plugin level (instead
+ * of relying on Vite's prefix-matching `resolve.alias`)
+ * is what makes HMR work for lib edits: imports point at
+ * TypeScript source, Vite watches and Fast-Refreshes
+ * them like first-party files.
+ *
+ * Memoizes positive hits; misses are returned but not
+ * cached, so adding a new file is picked up on the next
+ * import without a server restart.
+ */
+const RESOLVE_EXTENSIONS = [
+  '.tsx',
+  '.ts',
+  '.jsx',
+  '.js',
+  '.css',
+  '.json',
+] as const
+
+const KNOWN_EXTENSIONS = new Set([
+  '.tsx',
+  '.ts',
+  '.jsx',
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.css',
+  '.json',
+])
+
+const resolveCache = new Map<string, string>()
+
+function probe(baseAbsolute: string, subpath: string): string | null {
+  const cacheKey = `${baseAbsolute}\0${subpath}`
+  const cached = resolveCache.get(cacheKey)
+  if (cached !== undefined) return cached
+
+  const full = join(baseAbsolute, subpath)
+
+  // Only short-circuit when the extname is a real module
+  // extension. Random dotted filenames need to fall
+  // through to the extension probe so `<full>.ts` is
+  // tried.
+  const ext = extname(subpath)
+  if (ext !== '' && KNOWN_EXTENSIONS.has(ext)) {
+    if (existsSync(full)) {
+      resolveCache.set(cacheKey, full)
+      return full
+    }
+    return null
+  }
+
+  for (const e of RESOLVE_EXTENSIONS) {
+    const candidate = `${full}${e}`
+    if (existsSync(candidate)) {
+      resolveCache.set(cacheKey, candidate)
+      return candidate
+    }
+  }
+
+  const indexBase = join(full, 'index')
+  for (const e of RESOLVE_EXTENSIONS) {
+    const candidate = `${indexBase}${e}`
+    if (existsSync(candidate)) {
+      resolveCache.set(cacheKey, candidate)
+      return candidate
+    }
+  }
+
+  return null
+}
+
+function workspacePlugin(rootDir: string): Plugin {
+  const codeRoot = resolve(rootDir, 'code')
+  return {
+    name: 'rock-workspace-resolver',
+    enforce: 'pre',
+    resolveId(id, importer) {
+      // Strip Vite query suffixes (`?url`, `?raw`, etc.)
+      // for the filesystem lookup; re-attach when returning.
+      const queryAt = id.indexOf('?')
+      const query = queryAt >= 0 ? id.slice(queryAt) : ''
+      const bareId = queryAt >= 0 ? id.slice(0, queryAt) : id
+      const finish = (resolved: string | null) =>
+        resolved == null ? null : resolved + query
+
+      // @cluesurf/rock + @cluesurf/rock/<subpath>
+      if (bareId === '@cluesurf/rock') {
+        return finish(probe(codeRoot, 'index'))
+      }
+      if (bareId.startsWith('@cluesurf/rock/')) {
+        const subpath = bareId.slice('@cluesurf/rock/'.length)
+        return finish(probe(codeRoot, subpath))
+      }
+
+      // @/<subpath> — only valid from files inside code/.
+      // (base/code/ doesn't declare an @/ alias in its
+      // tsconfig.)
+      if (!bareId.startsWith('@/') || !importer) return null
+      const importerNormalized = importer.split(sep).join('/')
+      const codeRootNormalized = codeRoot.split(sep).join('/')
+      if (!importerNormalized.startsWith(codeRootNormalized + '/')) {
+        return null
+      }
+      const subpath = bareId.slice('@/'.length)
+      return finish(probe(codeRoot, subpath))
+    },
+  }
+}
+
+/**
+ * Invalidate stale module-resolution caches when files
+ * appear inside the lib's code/ dir. Without this, vite's
+ * pluginContainer caches the *negative* resolveId result
+ * from before the file existed; you'd add a new file and
+ * Vite would keep reporting "Cannot find module" until a
+ * full server restart.
+ */
+function invalidateOnNewFile(rootDir: string): Plugin {
+  const codeRoot = resolve(rootDir, 'code')
+  return {
+    name: 'rock-invalidate-on-new-file',
+    configureServer(server) {
+      const invalidate = () => {
+        resolveCache.clear()
+        server.moduleGraph.invalidateAll()
+      }
+      server.watcher.on('add', file => {
+        if (file.startsWith(codeRoot)) invalidate()
+      })
+      server.watcher.on('addDir', dir => {
+        if (dir.startsWith(codeRoot)) invalidate()
+      })
+    },
+  }
+}
 
 // Native + Electron modules that MUST resolve from
 // node_modules at runtime. node-pty's internal loader uses
@@ -55,7 +202,31 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(__dirname, 'code'),
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      // Workspace resolver runs FIRST (enforce: 'pre') so
+      // it can intercept `@cluesurf/rock/*` and `@/*`
+      // imports before Vite's standard resolution tries
+      // to find them inside node_modules/host.
+      workspacePlugin(resolve(__dirname, '..')),
+      invalidateOnNewFile(resolve(__dirname, '..')),
+      react(),
+      tailwindcss(),
+    ],
+    // NEVER auto-open a browser in dev. Electron IS the
+    // renderer; a browser tab is at best useless (no
+    // preload → `window.app` undefined → crash) and at
+    // worst confusing. Pin this off explicitly so a
+    // plugin or future config merge can't flip it back.
+    server: {
+      open: false,
+      strictPort: true,
+      // Let Vite read source files from the parent dir
+      // (../code/**). Default `server.fs.allow` is just
+      // the renderer root, which would block the lib.
+      fs: {
+        allow: [resolve(__dirname, '..')],
+      },
+    },
     build: {
       outDir: resolve(__dirname, 'make/renderer'),
       emptyOutDir: true,

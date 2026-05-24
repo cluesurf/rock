@@ -49,11 +49,14 @@ import {
   findNode,
   findParent,
   flattenLeaves,
+  insertNodeAfter,
   makeGroup,
   makeLeaf,
   moveNode,
+  prependChild,
   removeNode,
   renameNode,
+  setCollapsedDeep,
   toggleCollapsed,
   visibleOrder,
   type DropPosition,
@@ -145,13 +148,34 @@ export function TreeView({
     [tree],
   )
 
+  // Return DOM focus to the row after commit/cancel so
+  // the user can press Enter again to re-enter rename
+  // mode without clicking. Without this, the input
+  // unmounts → focus falls to <body> → Enter does
+  // nothing → users have to click the row first to make
+  // Enter work again.
+  const refocusRow = useCallback((id: string) => {
+    requestAnimationFrame(() => {
+      const el = rootRef.current?.querySelector(
+        `[data-rock-node-id="${id}"]`,
+      ) as HTMLElement | null
+      el?.focus()
+    })
+  }, [])
+
   const commitRename = useCallback(() => {
     if (!renaming) return
+    const id = renaming.id
     onChange(renameNode(tree, renaming.id, renaming.draft))
     setRenaming(null)
-  }, [renaming, tree, onChange])
+    refocusRow(id)
+  }, [renaming, tree, onChange, refocusRow])
 
-  const cancelRename = useCallback(() => setRenaming(null), [])
+  const cancelRename = useCallback(() => {
+    const id = renaming?.id
+    setRenaming(null)
+    if (id) refocusRow(id)
+  }, [renaming, refocusRow])
 
   const deleteNode = useCallback(
     (id: string) => {
@@ -170,8 +194,30 @@ export function TreeView({
     [tree, onChange, onDeleteLeaf],
   )
 
+  // Decide where to drop a freshly-created node based on
+  // the user's current selection. Rules:
+  //   focused = group → FIRST CHILD of the group (and
+  //     expand the group so the new node is visible).
+  //   focused = leaf  → SIBLING immediately AFTER the leaf.
+  //   focused = null  → append at root.
+  // Same rules apply whether the new node is a leaf or a
+  // group, so insertGroupSibling and insertNewTab share
+  // them.
+  const insertAtSelection = useCallback(
+    (node: TreeNode): TreeNode[] => {
+      if (focusedId === null) return [...tree, node]
+      const target = findNode(tree, focusedId)
+      if (!target) return [...tree, node]
+      if (target.kind === 'group') {
+        return prependChild(tree, node, target.id)
+      }
+      return insertNodeAfter(tree, node, target.id)
+    },
+    [tree, focusedId],
+  )
+
   const insertGroupSibling = useCallback(
-    (afterId: string | null) => {
+    () => {
       // Auto-name: first group is `group`, then `group-2`,
       // `group-3`, etc. Don't reuse a label already taken.
       const used = new Set<string>()
@@ -183,19 +229,24 @@ export function TreeView({
         n += 1
       }
       const group = makeGroup(label)
-      let next: TreeNode[]
-      if (afterId === null) {
-        next = [...tree, group]
-      } else {
-        const parent = findParent(tree, afterId)
-        next = appendNode(tree, group, parent?.id ?? null)
-      }
+      const next = insertAtSelection(group)
       onChange(next)
+      // Leave the new group SELECTED (focused) but not in
+      // rename mode. The user can press Enter to start
+      // editing its name. Going straight into rename made
+      // it easy to accidentally lose the auto-name by
+      // hitting a stray key.
       setFocusedId(group.id)
-      // Auto-rename so the user can type a name immediately.
-      setRenaming({ id: group.id, draft: label })
+      // Move DOM focus to the new row so Enter / arrows
+      // act on it instead of the previously-focused row.
+      requestAnimationFrame(() => {
+        const el = rootRef.current?.querySelector(
+          `[data-rock-node-id="${group.id}"]`,
+        ) as HTMLElement | null
+        el?.focus()
+      })
     },
-    [tree, onChange],
+    [tree, onChange, insertAtSelection],
   )
 
   const insertNewTab = useCallback(async () => {
@@ -203,19 +254,27 @@ export function TreeView({
     const result = await onRequestNewSlab()
     if (!result) return
     const leaf = makeLeaf(result.name)
-    // Always a SIBLING of the focused node — never inside
-    // a group. If focused is null, append to root. To put
-    // a leaf INSIDE a group, drag it in.
-    let parentId: string | null = null
-    if (focusedId) {
-      const parent = findParent(tree, focusedId)
-      parentId = parent?.id ?? null
-    }
-    const next = appendNode(tree, leaf, parentId)
+    const next = insertAtSelection(leaf)
     onChange(next)
+    // Sidebar: select the new row so the violet ring
+    // appears + Enter starts rename. DOM focus moves to
+    // the row so keystrokes target it instead of the
+    // previously-focused element.
     setFocusedId(leaf.id)
+    requestAnimationFrame(() => {
+      const el = rootRef.current?.querySelector(
+        `[data-rock-node-id="${leaf.id}"]`,
+      ) as HTMLElement | null
+      el?.focus()
+    })
+    // Also surface the terminal in the main pane.
+    // onActivateLeaf switches the active slab tab via the
+    // host shell. The new slab's PTY was already spawned
+    // with the project root cwd (host wires defaultCwd
+    // through to manager.createSlab), so it starts where
+    // Rock was launched.
     onActivateLeaf?.(leaf)
-  }, [focusedId, tree, onChange, onRequestNewSlab, onActivateLeaf])
+  }, [tree, onChange, onRequestNewSlab, onActivateLeaf, insertAtSelection])
 
   // ── Activation ────────────────────────────────────────
   const activateLeaf = useCallback(
@@ -293,13 +352,30 @@ export function TreeView({
     const overHeight = overRect.height
 
     const overNode = findNode(tree, overId)
-    // Groups: the registered drop target is the group's
-    // HEADER only (children render below in their own
-    // sortable rows). So any cursor-over-header = "drop
-    // INSIDE this group". Anything above/below the header
-    // is intercepted by sibling rows.
+    // Groups: hovering over a group header is over-
+    // whelmingly "drop INTO this group" intent. We only
+    // interpret it as a sibling drop when the cursor is
+    // pinned to the very edge. EDGE is intentionally
+    // small (3px) and the empty-collapsed case skips the
+    // edge bands entirely — when there's no children
+    // showing, "after" doesn't separate the group from
+    // anything visible, so the 'after' band would be a
+    // landmine.
     if (overNode?.kind === 'group') {
-      setDropOver({ targetId: overId, position: 'inside' })
+      const isEmptyCollapsed =
+        overNode.children.length === 0 ||
+        overNode.collapsed === true
+      let position: DropPosition
+      if (isEmptyCollapsed) {
+        position = 'inside'
+      } else {
+        const offset = activeCenter - overTop
+        const EDGE = 3
+        if (offset < EDGE) position = 'before'
+        else if (offset > overHeight - EDGE) position = 'after'
+        else position = 'inside'
+      }
+      setDropOver({ targetId: overId, position })
       return
     }
 
@@ -333,7 +409,13 @@ export function TreeView({
     const position = stagedDrop?.targetId === overId
       ? stagedDrop.position
       : 'after'
-    onChange(moveNode(tree, dragId, overId, position))
+    const next = moveNode(tree, dragId, overId, position)
+    // moveNode returns the same array reference if the
+    // move is a no-op (e.g. moving a leaf to where it
+    // already is). Skip the onChange so we don't fire a
+    // pointless re-render + persist.
+    if (next === tree) return
+    onChange(next)
   }
 
   // ── Render ───────────────────────────────────────────
@@ -364,6 +446,9 @@ export function TreeView({
             setFocusedId={setFocusedId}
             setDropOver={setDropOver}
             onToggleCollapse={(id) => onChange(toggleCollapsed(tree, id))}
+            onSetCollapsedDeep={(id, collapsed) =>
+              onChange(setCollapsedDeep(tree, id, collapsed))
+            }
             onActivateLeaf={activateLeaf}
             onStartRename={startRename}
             onCommitRename={commitRename}
@@ -371,7 +456,7 @@ export function TreeView({
             onRenameDraft={(draft) => setRenaming(r => r ? { ...r, draft } : r)}
             onDelete={deleteNode}
             onNewTab={insertNewTab}
-            onNewGroup={(afterId) => insertGroupSibling(afterId)}
+            onNewGroup={() => insertGroupSibling()}
             onMoveFocus={moveFocus}
           />
         ))}
@@ -432,6 +517,10 @@ type NodeRowProps = {
   setFocusedId: (id: string | null) => void
   setDropOver: (s: DropOverState) => void
   onToggleCollapse: (id: string) => void
+  /** Set a group AND every nested descendant group to the
+   *  given collapsed state. Bound to Cmd+→ / Cmd+← on a
+   *  focused group. */
+  onSetCollapsedDeep: (id: string, collapsed: boolean) => void
   onActivateLeaf: (leaf: LeafNode) => void
   onStartRename: (id: string) => void
   onCommitRename: () => void
@@ -439,7 +528,7 @@ type NodeRowProps = {
   onRenameDraft: (draft: string) => void
   onDelete: (id: string) => void
   onNewTab: () => void
-  onNewGroup: (afterId: string | null) => void
+  onNewGroup: () => void
   onMoveFocus: (delta: number) => void
 }
 
@@ -465,6 +554,7 @@ function GroupRow(props: NodeRowProps & { node: GroupNode }) {
     setFocusedId,
     setDropOver,
     onToggleCollapse,
+    onSetCollapsedDeep,
     onStartRename,
     onCommitRename,
     onCancelRename,
@@ -497,10 +587,23 @@ function GroupRow(props: NodeRowProps & { node: GroupNode }) {
       onMoveFocus(-1)
     } else if (event.key === 'ArrowRight') {
       handled()
-      if (node.collapsed) onToggleCollapse(node.id)
+      // Cmd/Ctrl modifier → recursively expand this
+      // group AND every nested descendant group. Without
+      // modifier → just toggle this group open.
+      if (event.metaKey || event.ctrlKey) {
+        onSetCollapsedDeep(node.id, false)
+      } else if (node.collapsed) {
+        onToggleCollapse(node.id)
+      }
     } else if (event.key === 'ArrowLeft') {
       handled()
-      if (!node.collapsed) onToggleCollapse(node.id)
+      // Cmd/Ctrl modifier → recursively collapse this
+      // group AND every nested descendant group.
+      if (event.metaKey || event.ctrlKey) {
+        onSetCollapsedDeep(node.id, true)
+      } else if (!node.collapsed) {
+        onToggleCollapse(node.id)
+      }
     } else if (event.key === ' ') {
       handled()
       onToggleCollapse(node.id)
@@ -519,7 +622,7 @@ function GroupRow(props: NodeRowProps & { node: GroupNode }) {
       event.key.toLowerCase() === 'g'
     ) {
       handled()
-      onNewGroup(node.id)
+      onNewGroup()
     } else if (
       (event.metaKey || event.ctrlKey) &&
       (event.key.toLowerCase() === 'w' ||
@@ -565,9 +668,15 @@ function GroupRow(props: NodeRowProps & { node: GroupNode }) {
           if (!isRenaming) onToggleCollapse(node.id)
           e.stopPropagation()
         }}
-        /* No double-click → rename. Press Enter on a
-           focused row to rename. Click only toggles
-           collapse / selects. */
+        /* Double-click → rename. Mirror of LeafRow's
+           behavior so group + leaf feel consistent. The
+           single-click handler above only toggles
+           collapse / selects, so the double-click can
+           cleanly take over for rename. */
+        onDoubleClick={(e) => {
+          e.stopPropagation()
+          if (!isRenaming) onStartRename(node.id)
+        }}
       >
         {isRenaming ? (
           <RenameInput
@@ -592,9 +701,12 @@ function GroupRow(props: NodeRowProps & { node: GroupNode }) {
             </span>
           </>
         )}
-        {/* GroupStatusBadge intentionally omitted from the
-            default chrome — felt noisy. Re-enable here if
-            we want it: <GroupStatusBadge group={node} /> */}
+        {/* Child count badge — always shown when the group
+            has children. CSS dims it when the group is
+            EXPANDED (children visible → count is
+            supplementary) and brightens it when COLLAPSED
+            (children hidden → count is the only signal). */}
+        <GroupCount group={node} />
       </div>
       {!node.collapsed && (
         <div data-rock-branch-children="">
@@ -706,12 +818,15 @@ function LeafRow(props: NodeRowProps & { node: LeafNode }) {
     ) {
       event.preventDefault()
       event.stopPropagation()
-      onNewGroup(node.id)
+      onNewGroup()
     } else if (
       (event.metaKey || event.ctrlKey) &&
-      event.key.toLowerCase() === 'w'
+      (event.key.toLowerCase() === 'w' ||
+        event.key === 'Backspace' ||
+        event.key === 'Delete')
     ) {
       event.preventDefault()
+      event.stopPropagation()
       onDelete(node.id)
     }
   }
@@ -817,16 +932,24 @@ function RenameInput({
 }
 
 /**
- * Picks the right indicator glyph from the slab's status
- * + recent activity:
+ * Indicator glyph for a slab.
  *
- *   busy (data flowing)   ◉  pulsing dot (more visible than ⋯ ellipsis)
- *   running, no output    ●  solid dot
- *   waiting (long idle)   ◌  ring — running but quiet
- *   starting              ◐  half circle
- *   exited                ○  empty circle
- *   failed                ✕  cross
- *   idle (no shell yet)   (none)
+ *   ᛫  no process running in this slab (idle)
+ *   ○  process running, nothing happening
+ *   ●  process running, actively crunching
+ *   ◐  starting up
+ *   ✕  failed
+ *
+ * The ○ ↔ ● transition uses an ASYMMETRIC debounce so the
+ * glyph doesn't jolt back and forth when output arrives
+ * in periodic bursts (watchers, loggers, Claude streaming
+ * its tokens, etc.):
+ *
+ *   ○ → ●  fires after 300ms of continuous busy. Fast
+ *           because user wants quick feedback that work
+ *           started.
+ *   ● → ○  fires after 4300ms of continuous quiet. Slow
+ *           so brief lulls don't cause the dot to flicker.
  */
 function LeafStatusDot({
   status,
@@ -835,57 +958,27 @@ function LeafStatusDot({
   status: string
   slabId: string | undefined
 }) {
-  const { busy, lastActiveAt } = useSlabActivity(slabId)
-
-  // Filter brief activity blips out — only flip to "busy"
-  // when it's been continuously busy for 300ms. Single
-  // focus-event data bursts and other <300ms transients
-  // don't trigger the glyph change.
-  const stableBusy = useStable(busy, 300)
-
-  // Tick every 3s while not-busy + running so "waiting"
-  // re-evaluates against the clock.
-  const [, setTick] = useState(0)
-  useEffect(() => {
-    if (stableBusy || status !== 'running') return
-    const id = setInterval(() => setTick(t => t + 1), 3000)
-    return () => clearInterval(id)
-  }, [stableBusy, status])
-
-  // Hold the glyph hidden for 500ms after this leaf first
-  // mounts. Fades in over 200ms via CSS transition. Hides
-  // the brief render-cycle flashes the user sees on click.
-  const [hasMounted, setHasMounted] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setHasMounted(true), 500)
-    return () => clearTimeout(t)
-  }, [])
-
-  const now = Date.now()
-  const quietFor =
-    lastActiveAt != null ? now - lastActiveAt : Infinity
-  const isWaiting =
-    !stableBusy && status === 'running' && quietFor > 10000
+  const { busy } = useSlabActivity(slabId)
+  const stableBusy = useAsymmetricStable(busy, 300, 4300)
 
   let char = ''
   let dataStatus = status
-  if (stableBusy && (status === 'running' || status === 'starting' || status === 'idle')) {
-    char = '◉'
-    dataStatus = 'busy'
-  } else if (isWaiting) {
-    // … (single-char ellipsis, U+2026). Reads as
-    // "process is doing something, just no recent output."
-    char = '…'
-    dataStatus = 'waiting'
-  } else {
-    const map: Record<string, string> = {
-      running:  '●',
-      starting: '◐',
-      exited:   '○',
-      failed:   '✕',
-      idle:     '',
+  if (status === 'failed') char = '✕'
+  else if (status === 'starting') char = '◐'
+  else if (status === 'running') {
+    if (stableBusy) {
+      char = '●'
+      dataStatus = 'busy'
+    } else {
+      char = '○'
     }
-    char = map[status] ?? ''
+  } else if (status === 'exited' || status === 'idle' || status === '') {
+    // No process active (never spawned, or spawned and exited).
+    // Show the small "᛫" rather than nothing so the leaf
+    // always has a status glyph and the user knows the
+    // slab is dormant rather than missing.
+    char = '᛫'
+    dataStatus = 'idle'
   }
 
   if (!char) return null
@@ -894,10 +987,6 @@ function LeafStatusDot({
       data-rock-leaf-dot=""
       data-status={dataStatus}
       aria-label={dataStatus}
-      style={{
-        opacity: hasMounted ? 1 : 0,
-        transition: 'opacity 200ms ease-in',
-      }}
     >
       {char}
     </span>
@@ -905,47 +994,56 @@ function LeafStatusDot({
 }
 
 /**
- * Returns `value` only after it has been continuously
- * true for `ms` milliseconds. Drops back to false
- * immediately. Used to filter brief activity blips.
+ * Returns `value`, but only after it's held steady for
+ * `upDelay` (when transitioning to true) or `downDelay`
+ * (when transitioning to false) milliseconds. Used by
+ * LeafStatusDot so the busy glyph reacts fast to work
+ * starting but slowly to work pausing.
  */
-function useStable(value: boolean, ms: number): boolean {
-  const [stable, setStable] = useState(false)
+function useAsymmetricStable(
+  value: boolean,
+  upDelay: number,
+  downDelay: number,
+): boolean {
+  const [stable, setStable] = useState(value)
   useEffect(() => {
-    if (!value) {
-      setStable(false)
-      return
-    }
-    const t = setTimeout(() => setStable(true), ms)
+    if (stable === value) return
+    const t = setTimeout(
+      () => setStable(value),
+      value ? upDelay : downDelay,
+    )
     return () => clearTimeout(t)
-  }, [value, ms])
+  }, [value, upDelay, downDelay, stable])
   return stable
 }
 
-function GroupStatusBadge({ group }: { group: GroupNode }) {
-  const slabIdByName = useTerminalStore(s => s.slabIdByName)
-  const slabs = useTerminalStore(s => s.slabs)
-  const { total, running } = useMemo(() => {
+/**
+ * Tiny child-count tag shown on the right of every group
+ * header. Counts every leaf reachable from this group
+ * (including those nested inside subgroups). CSS dims the
+ * count when the group is expanded (count = redundant
+ * signal) and brightens it when collapsed (count = only
+ * signal that there's stuff hidden).
+ */
+function GroupCount({ group }: { group: GroupNode }) {
+  const total = useMemo(() => {
     let t = 0
-    let r = 0
     function walk(nodes: TreeNode[]) {
       for (const n of nodes) {
         if (n.kind === 'group') walk(n.children)
-        else {
-          t += 1
-          const id = slabIdByName[n.slabName]
-          if (id && slabs[id]?.status === 'running') r += 1
-        }
+        else t += 1
       }
     }
     walk(group.children)
-    return { total: t, running: r }
-  }, [group, slabIdByName, slabs])
+    return t
+  }, [group])
   if (total === 0) return null
-  const label = running > 0 ? `${running}/${total}` : `${total}`
   return (
-    <span data-rock-branch-count="" aria-label={`${total} items, ${running} running`}>
-      {label}
+    <span
+      data-rock-branch-count=""
+      aria-label={`${total} item${total === 1 ? '' : 's'}`}
+    >
+      {total}
     </span>
   )
 }

@@ -109,6 +109,18 @@ export class TerminalManager {
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
         TERM_PROGRAM: 'cluesurf-rock',
+        // Disable zsh's "partial line" indicator. zsh
+        // prints a highlighted `%` and inserts a newline
+        // whenever the previous output didn't end in \n —
+        // e.g. when xterm sends its initial resize before
+        // the first prompt fires, or when an OSC reply
+        // doesn't include a trailing newline. Cosmetic
+        // glitch only, but it pushes the first prompt
+        // onto line 2, which the user reads as "the
+        // cursor went to the wrong place". Setting an
+        // empty mark suppresses both the % and the
+        // forced newline.
+        PROMPT_EOL_MARK: '',
         ...input.env,
       } as Record<string, string>,
     })
@@ -151,6 +163,28 @@ export class TerminalManager {
 
     slab.status = 'running'
     this.emitStatus(id, 'running')
+
+    // OSC 7 init hook. zsh + bash don't emit OSC 7 by
+    // default, so without this Rock would never receive
+    // cwd-change notifications and the persisted cwd for
+    // every tab would be the initial spawn cwd forever
+    // (defeats "reopen each tab where I was").
+    //
+    // The hook is a one-liner that defines a tiny print
+    // function + registers it with the shell's chpwd /
+    // PROMPT_COMMAND hook, then fires once to capture
+    // the initial state. Trailing `clear` wipes the
+    // setup so the user never sees it.
+    //
+    // Other shells (fish, nu, etc.) silently no-op this
+    // line — they'll get the initial-cwd-only behavior,
+    // still better than nothing.
+    const osc7Hook =
+      `_rock_cwd(){ printf '\\033]7;file://%s%s\\a' "${'${HOSTNAME:-${HOST}}'}" "$PWD"; };` +
+      ` if [ -n "$ZSH_VERSION" ]; then chpwd_functions+=(_rock_cwd) 2>/dev/null;` +
+      ` elif [ -n "$BASH_VERSION" ]; then PROMPT_COMMAND="_rock_cwd;${'${PROMPT_COMMAND:-}'}"; fi;` +
+      ` _rock_cwd; clear`
+    proc.write(`${osc7Hook}\r`)
 
     if (input.command) {
       proc.write(`${input.command}\r`)

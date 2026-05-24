@@ -29,6 +29,7 @@ import {
 } from '@cluesurf/rock/face'
 import {
   flatTree,
+  setAllCollapsed,
   flattenLeaves,
   removeNode,
   type LeafNode,
@@ -504,6 +505,51 @@ function ShellContent() {
       {
         keys: 'ctrl+cmd+f',
         do: () => void window.app.toggleFullscreen?.(),
+      },
+      {
+        // VSCode-parity binding for "Open Settings". Auto-
+        // creates .rock/ at the launched cwd if missing,
+        // flushes the live tree + cwds into
+        // base.local.json, then opens that file in the
+        // user's default editor. Edits saved there persist
+        // across Rock relaunches (the existing state-store
+        // loads from this same file).
+        keys: 'cmd+,',
+        do: () => void window.app.openSettings?.(),
+      },
+      {
+        // Global "expand every group in the tree". Skipped
+        // when the focus is in the sidebar — there the
+        // per-group Cmd+→ handler does a recursive expand
+        // of the focused group only.
+        keys: 'cmd+right',
+        do: () => {
+          if (
+            document.activeElement instanceof HTMLElement &&
+            document.activeElement.closest('[data-rock-tree]')
+          ) return
+          setTree(prev => {
+            if (!prev) return prev
+            const next = setAllCollapsed(prev, false)
+            void window.app.saveTree?.(next)
+            return next
+          })
+        },
+      },
+      {
+        keys: 'cmd+left',
+        do: () => {
+          if (
+            document.activeElement instanceof HTMLElement &&
+            document.activeElement.closest('[data-rock-tree]')
+          ) return
+          setTree(prev => {
+            if (!prev) return prev
+            const next = setAllCollapsed(prev, true)
+            void window.app.saveTree?.(next)
+            return next
+          })
+        },
       },
     ],
     [setActive],

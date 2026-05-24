@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import {
   TERMINAL_EVENT_CHANNEL,
   TERMINAL_REQUEST_CHANNEL,
@@ -43,5 +43,12 @@ export function makeTerminalApi(): TerminalApi {
 export function exposeTerminalApi(key = 'app'): void {
   contextBridge.exposeInMainWorld(key, {
     terminal: makeTerminalApi(),
+    // Electron 32+ deprecated File.path on File objects.
+    // The replacement is webUtils.getPathForFile(file).
+    // We expose it here so the renderer (dock.tsx) can
+    // resolve filesystem paths off pasted/dropped File
+    // objects — needed for "paste an image from Finder"
+    // to work the way iTerm2 does it.
+    getPathForFile: (file: File): string => webUtils.getPathForFile(file),
   })
 }
