@@ -554,8 +554,8 @@ function GroupRow(props: NodeRowProps & { node: GroupNode }) {
         role="treeitem"
         aria-expanded={!node.collapsed}
         style={{
-          paddingLeft: 16 + depth * 14,
-        paddingRight: 16,
+          paddingLeft: 12 + depth * 12,
+        paddingRight: 12,
           transform: CSS.Transform.toString(sortable.transform),
           transition: sortable.transition,
         }}
@@ -565,10 +565,9 @@ function GroupRow(props: NodeRowProps & { node: GroupNode }) {
           if (!isRenaming) onToggleCollapse(node.id)
           e.stopPropagation()
         }}
-        onDoubleClick={(e) => {
-          e.stopPropagation()
-          onStartRename(node.id)
-        }}
+        /* No double-click → rename. Press Enter on a
+           focused row to rename. Click only toggles
+           collapse / selects. */
       >
         {isRenaming ? (
           <RenameInput
@@ -679,13 +678,26 @@ function LeafRow(props: NodeRowProps & { node: LeafNode }) {
       onMoveFocus(-1)
     } else if (event.key === 'Enter') {
       event.preventDefault()
+      event.stopPropagation()
       if (isFocused && !isActive) onActivateLeaf(node)
       else onStartRename(node.id)
+    } else if (event.key === 'Tab' && !event.shiftKey) {
+      // Tab from a focused leaf → jump to the terminal so
+      // the user can start typing. xterm's input is a
+      // hidden <textarea class="xterm-helper-textarea">
+      // inside the ready Dock.
+      event.preventDefault()
+      event.stopPropagation()
+      const xtermTextarea = document.querySelector(
+        '[data-rock-dock][data-ready="true"] .xterm-helper-textarea',
+      ) as HTMLTextAreaElement | null
+      xtermTextarea?.focus()
     } else if (
       (event.metaKey || event.ctrlKey) &&
       event.key.toLowerCase() === 't'
     ) {
       event.preventDefault()
+      event.stopPropagation()
       onNewTab()
     } else if (
       (event.metaKey || event.ctrlKey) &&
@@ -693,6 +705,7 @@ function LeafRow(props: NodeRowProps & { node: LeafNode }) {
       event.key.toLowerCase() === 'g'
     ) {
       event.preventDefault()
+      event.stopPropagation()
       onNewGroup(node.id)
     } else if (
       (event.metaKey || event.ctrlKey) &&
@@ -709,8 +722,8 @@ function LeafRow(props: NodeRowProps & { node: LeafNode }) {
         ref={sortable.setNodeRef}
         data-rock-leaf=""
         style={{
-          paddingLeft: 16 + depth * 14,
-        paddingRight: 16,
+          paddingLeft: 12 + depth * 12,
+        paddingRight: 12,
           transform: CSS.Transform.toString(sortable.transform),
           transition: sortable.transition,
         }}
@@ -739,8 +752,8 @@ function LeafRow(props: NodeRowProps & { node: LeafNode }) {
       data-drop={isDropTarget ? dropOver.position : ''}
       data-status={status}
       style={{
-        paddingLeft: 16 + depth * 14,
-        paddingRight: 16,
+        paddingLeft: 12 + depth * 12,
+        paddingRight: 12,
         transform: CSS.Transform.toString(sortable.transform),
         transition: sortable.transition,
       }}
@@ -803,6 +816,18 @@ function RenameInput({
   )
 }
 
+/**
+ * Picks the right indicator glyph from the slab's status
+ * + recent activity:
+ *
+ *   busy (data flowing)   ◉  pulsing dot (more visible than ⋯ ellipsis)
+ *   running, no output    ●  solid dot
+ *   waiting (long idle)   ◌  ring — running but quiet
+ *   starting              ◐  half circle
+ *   exited                ○  empty circle
+ *   failed                ✕  cross
+ *   idle (no shell yet)   (none)
+ */
 function LeafStatusDot({
   status,
   slabId,
@@ -810,33 +835,91 @@ function LeafStatusDot({
   status: string
   slabId: string | undefined
 }) {
-  // Busy = data flowing from the PTY in the last 250ms.
-  // Reads as "command is actively running output" when set
-  // while the shell would otherwise be at an idle prompt.
-  const { busy } = useSlabActivity(slabId)
-  // Effective glyph: busy beats status (so an exited slab
-  // doesn't pulse, but a running slab does).
-  if (busy && (status === 'running' || status === 'starting' || status === 'idle')) {
-    return (
-      <span data-rock-leaf-dot="" data-status="busy" aria-label="busy">
-        ⋯
-      </span>
-    )
+  const { busy, lastActiveAt } = useSlabActivity(slabId)
+
+  // Filter brief activity blips out — only flip to "busy"
+  // when it's been continuously busy for 300ms. Single
+  // focus-event data bursts and other <300ms transients
+  // don't trigger the glyph change.
+  const stableBusy = useStable(busy, 300)
+
+  // Tick every 3s while not-busy + running so "waiting"
+  // re-evaluates against the clock.
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (stableBusy || status !== 'running') return
+    const id = setInterval(() => setTick(t => t + 1), 3000)
+    return () => clearInterval(id)
+  }, [stableBusy, status])
+
+  // Hold the glyph hidden for 500ms after this leaf first
+  // mounts. Fades in over 200ms via CSS transition. Hides
+  // the brief render-cycle flashes the user sees on click.
+  const [hasMounted, setHasMounted] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setHasMounted(true), 500)
+    return () => clearTimeout(t)
+  }, [])
+
+  const now = Date.now()
+  const quietFor =
+    lastActiveAt != null ? now - lastActiveAt : Infinity
+  const isWaiting =
+    !stableBusy && status === 'running' && quietFor > 10000
+
+  let char = ''
+  let dataStatus = status
+  if (stableBusy && (status === 'running' || status === 'starting' || status === 'idle')) {
+    char = '◉'
+    dataStatus = 'busy'
+  } else if (isWaiting) {
+    // … (single-char ellipsis, U+2026). Reads as
+    // "process is doing something, just no recent output."
+    char = '…'
+    dataStatus = 'waiting'
+  } else {
+    const map: Record<string, string> = {
+      running:  '●',
+      starting: '◐',
+      exited:   '○',
+      failed:   '✕',
+      idle:     '',
+    }
+    char = map[status] ?? ''
   }
-  const map: Record<string, string> = {
-    running:  '●',
-    starting: '◐',
-    exited:   '○',
-    failed:   '✕',
-    idle:     '',
-  }
-  const char = map[status] ?? ''
+
   if (!char) return null
   return (
-    <span data-rock-leaf-dot="" data-status={status} aria-label={status}>
+    <span
+      data-rock-leaf-dot=""
+      data-status={dataStatus}
+      aria-label={dataStatus}
+      style={{
+        opacity: hasMounted ? 1 : 0,
+        transition: 'opacity 200ms ease-in',
+      }}
+    >
       {char}
     </span>
   )
+}
+
+/**
+ * Returns `value` only after it has been continuously
+ * true for `ms` milliseconds. Drops back to false
+ * immediately. Used to filter brief activity blips.
+ */
+function useStable(value: boolean, ms: number): boolean {
+  const [stable, setStable] = useState(false)
+  useEffect(() => {
+    if (!value) {
+      setStable(false)
+      return
+    }
+    const t = setTimeout(() => setStable(true), ms)
+    return () => clearTimeout(t)
+  }, [value, ms])
+  return stable
 }
 
 function GroupStatusBadge({ group }: { group: GroupNode }) {

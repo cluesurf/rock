@@ -1,133 +1,71 @@
-# What is rock?
+# What Rock is
 
-The short answer:
+Rock is a **hackable terminal workspace**. Like iTerm or
+Wezterm, but the layout is yours — you write your sidebar
+tree, layout React, command palette in a `.rock/code/`
+folder next to your project. Rock JIT-compiles it on
+launch.
 
-> **A headless, hackable terminal system.**
+## Three things in one
 
-Not a terminal emulator. Not a multiplexer. Not a
-framework. A library you compose into your own terminal-
-workspace app, with sensible defaults that get you running
-fast.
+1. **A terminal emulator.** xterm.js + node-pty in an
+   Electron shell. Renders ANSI faithfully, handles
+   clipboard, hyperlinks, font metrics. Themed (Dracula,
+   One Dark, Solarized, Nord, Gruvbox, Monokai, Tokyo
+   Night, ClueSurf Dark / Light) — bring your own as a
+   plain object.
 
----
+2. **A workspace manager.** Tabs (called "slabs") organized
+   in a VSCode-style nested tree. Per-project state in
+   `.rock/base.json` (committable) + `.rock/base.local.json`
+   (per-machine). Window position, sidebar width, tab list,
+   cwds — all restored on relaunch.
 
-## "Headless"
+3. **A scriptable shell.** A `rock` CLI ships with the app
+   (installed by the Homebrew cask). `rock`, `rock open`,
+   `rock bind`, `rock list`, `rock send`, `rock focus`,
+   `rock spawn`, `rock kill`, `rock doctor`. Talks to the
+   running Rock.app over a Unix-domain socket.
 
-Rock ships **no styling by default**. Components emit
-structure + data attributes. You provide the look.
+## Architecture in two paragraphs
 
-What "headless" means in practice:
-- Library components have ZERO opinions about colors,
-  spacing, borders, typography
-- Compose with Tailwind, CSS modules, styled-components,
-  vanilla CSS, shadcn — rock doesn't care
-- No prescribed app layout (no "your sidebar goes on the
-  left"). You decide.
-- No required theme. Bring your own or use a preset.
+The lib (`@cluesurf/rock`) ships React components for every
+piece of terminal chrome: `<Slab>`, `<Dock>`, `<TreeView>`,
+`<Palette>`, `<Bar>`, `<Sheet>`, `<Toast>`, `<Keys>`,
+plus the headless logic (workspace compilation, PTY
+manager, IPC protocol, state store, theme + tree types).
+The default Rock.app is a thin "shell" that wires these up
+into a sensible UI — sidebar tree, terminal pane, keyboard
+shortcuts. You can replace any part of it from your
+`.rock/code/index.tsx`.
 
-Same pattern as Radix UI, Headless UI, React Aria, Tanstack
-Table. Library = behavior + structure. You = look + feel.
+The Electron main process runs `node-pty` PTYs and bridges
+them to the renderer over IPC. A custom `rock://` protocol
+serves your JIT-compiled `.rock/code/` bundle. A second
+Unix-socket IPC server lets the `rock` CLI drive the
+running app (list slabs, send keystrokes, spawn new tabs).
+All persisted state lives in `.rock/` — there is no global
+user-data directory.
 
----
+## Where Rock fits
 
-## "Hackable"
+You'll want Rock if:
 
-Everything is composable React + plain TypeScript. No
-proprietary config schema. No plugin marketplace lock-in.
-No magic.
+- You live in `tmux`, `wezterm`, or a heavily-customized
+  terminal and find yourself wishing you could replace the
+  sidebar / status bar with a React component.
+- You manage many projects, each with their own
+  `dev / api / logs / db` set of always-running shells, and
+  want each project's layout to launch with one command.
+- You write CLIs that integrate with terminals via
+  custom escape codes, hyperlinks, OSC sequences and want
+  an Electron-grade renderer to debug against.
 
-What "hackable" means in practice:
-- The app is YOUR React tree. Rock provides primitives
-  (`<Nest>`, `<Slab>`, `<Dock>`, `<Tree>`, `<Bar>`,
-  `<Palette>`); you arrange them.
-- The workspace is a typed TypeScript object. No DSL to
-  learn.
-- Hooks expose state directly (`useSlab`, `useFocus`,
-  `useStatus`). Build whatever UI on top.
-- Imperative actions (`send`, `spawn`, `kill`, `focus`)
-  for scripting from any handler.
-- No "rock way" you have to do things — except spawning a
-  PTY, which rock handles for you.
+You probably **don't** want Rock if:
 
----
-
-## "Sensible defaults"
-
-Headless doesn't mean ugly. Rock ships an **optional
-Tailwind preset** that styles every component with
-sensible defaults:
-
-```css
-@import "tailwindcss";
-@import "@cluesurf/rock/tailwind/preset.css";
-```
-
-That gives you:
-- Dark-mode terminal chrome (matches xterm aesthetics)
-- Status indicators that change color based on slab state
-- Borders, padding, typography on `<Slab>`, `<Tree>`,
-  `<Bar>`, `<Palette>`
-- Polished out of the box
-
-Skip the preset if you want unstyled or use a different
-system. The data attributes (`[data-rock-*]`) are stable;
-any CSS can hook in.
-
----
-
-## "Terminal system"
-
-Rock isn't one terminal — it's the infrastructure for
-ANY terminal-workspace app:
-- A dev tool with sidebar + multiple panes
-- A DevOps cockpit with one terminal per service
-- A music studio with one terminal per process
-- A blog writer with a markdown editor + a build slab
-- A CI dashboard with a slab per pipeline stage
-- Anything where "running processes + custom UI around
-  them" is the shape
-
-The PTY lifecycle, IPC, xterm rendering, layout splits,
-session persistence — rock handles. The product idea — you
-provide.
-
----
-
-## What rock is NOT (the same words again, for clarity)
-
-| Claim | Reality |
-|---|---|
-| A terminal emulator | No. Use xterm.js (which rock wraps). |
-| A multiplexer | No. Slabs die with the window. Run tmux inside if you need persistence. |
-| A framework | No. It's a primitives library. |
-| An app | No. The demo is an app. Rock is the library underneath. |
-| A UI kit | No. Headless. |
-| A CLI tool | The `rock` CLI exists for scaffolding + control, but it's not the main artifact. |
-| Cross-platform native | Electron-based. macOS, Linux, Windows. |
-| GPU-accelerated | No. xterm.js is DOM-based. |
-
----
-
-## The five-word summary
-
-> **Headless hackable React terminal system.**
-
-If you want to:
-- Build a custom terminal-workspace app for YOUR workflow
-- Use TypeScript + React + your own design system
-- Get the boring parts (PTY, IPC, rendering) for free
-- Keep total control over UX
-
-Rock is for you.
-
-If you want a polished off-the-shelf terminal app: use
-WezTerm, Ghostty, Kitty, Wave, or Tabby.
-
----
-
-## Related
-
-- Public quickstart: `quickstart.md`
-- Concepts (deep dive): `concepts.md`
-- Terminal ecosystem: `terminal-landscape.md`
-- Why building from scratch is hard: `terminal-from-scratch.md`
+- You want a stock terminal with zero configuration.
+  Use Apple Terminal, iTerm2, or Ghostty.
+- You're on Windows or Linux first. Rock works on those
+  platforms but the macOS path is the most polished.
+- You want a tmux replacement that survives across
+  machines. Rock's state is per-machine (no sync).

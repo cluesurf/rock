@@ -269,11 +269,29 @@ function ShellContent() {
     }
   }, [])
 
+  // Track slab names the user just deleted, so the
+  // "auto-add missing slabs" effect below doesn't put them
+  // back during the brief window between leaf-delete and
+  // PTY-actually-killed-and-broadcasted. Cleaned out once
+  // the slab actually disappears from slabIdByName.
+  const [removedNames, setRemovedNames] = useState<Set<string>>(
+    () => new Set(),
+  )
+  useEffect(() => {
+    const alive = new Set(Object.keys(slabIdByName))
+    setRemovedNames(prev => {
+      const next = new Set([...prev].filter(n => alive.has(n)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [slabIdByName])
+
   // Whenever slabIdByName changes (slab added at runtime),
   // make sure every slab has a leaf in the tree. New slabs
-  // get appended at root.
+  // get appended at root. Skip slabs the user just removed.
   useEffect(() => {
-    const names = Object.keys(slabIdByName)
+    const names = Object.keys(slabIdByName).filter(
+      n => !removedNames.has(n),
+    )
     if (names.length === 0) return
     if (tree === null) {
       setTree(flatTree(names))
@@ -287,7 +305,7 @@ function ShellContent() {
       const base = prev ?? []
       return [...base, ...flatTree(missing)]
     })
-  }, [slabIdByName, tree])
+  }, [slabIdByName, tree, removedNames])
 
   // Persist tree on every change.
   const handleTreeChange = useCallback((next: TreeNode[]) => {
@@ -352,9 +370,12 @@ function ShellContent() {
   // Kill the underlying PTY when a leaf is deleted from
   // the tree so we don't leak shells (or any long-running
   // process) just because their sidebar row disappeared.
+  // Also record in removedNames so the auto-add effect
+  // doesn't put it back during the kill window.
   const api = useTerminalApi()
   const handleDeleteLeaf = useCallback(
     (leaf: LeafNode) => {
+      setRemovedNames(prev => new Set(prev).add(leaf.slabName))
       const id = useTerminalStore.getState().slabIdByName[leaf.slabName]
       if (!id) return
       void api.request({ type: 'slab:kill', payload: { slabId: id } })

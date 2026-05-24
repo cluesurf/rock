@@ -280,25 +280,30 @@
   [data-rock-rename] {
     flex: 1 1 auto;
     min-width: 0;
-    /* Internal text padding so the caret/letters aren't
-       flush with the ring. */
-    padding: 1px 6px;
-    /* External margin so the ring sits inset from the
-       row's content edges instead of overlapping the
-       row's left padding. */
-    margin: 0 2px;
-    height: auto;
+    /* 4px internal padding on each side; -4px outer margin
+       so the box visually expands 4px beyond the row's
+       content area in every direction while text stays at
+       its non-edit position pixel-perfect. The row already
+       has paddingRight: 12px → input's right edge lands at
+       8px from sidebar. */
+    padding-block: 0;
+    padding-inline: 4px;
+    margin: 0 -4px;
+    /* Height locked to exactly one line so the row never
+       grows when switching to edit mode. `1lh` = the
+       computed line-height of the inherited font. Border-
+       box so the box-shadow ring doesn't expand the box. */
+    height: 1lh;
+    box-sizing: border-box;
     font: inherit;
     font-family: inherit;
-    /* Inherit text-transform + letter-spacing so editing
-       a group label stays UPPERCASE; leaf stays lowercase. */
+    /* Inherit transform + spacing so editing a group label
+       stays UPPERCASE; leaf stays lowercase. */
     text-transform: inherit;
     letter-spacing: inherit;
     background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 10%, transparent);
     color: inherit;
-    /* Accent ring on the INPUT itself (not the row), so
-       it's a properly-sized edit box, not an edge-to-edge
-       band. */
+    /* Accent ring on the INPUT itself (not the row). */
     box-shadow: 0 0 0 1px var(--rock-accent, #8b5cf6);
     border-radius: 3px;
     border: 0;

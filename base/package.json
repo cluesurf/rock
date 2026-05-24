@@ -41,6 +41,7 @@
     "node-pty": "^1.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "yargs": "^18.0.0",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
@@ -48,6 +49,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@types/yargs": "^17.0.33",
     "@vitejs/plugin-react": "^6.0.0",
     "electron": "42.2.0",
     "electron-builder": "^26.0.0",
@@ -73,7 +75,8 @@
     ],
     "extraResources": [
       { "from": "bin/rock", "to": "rock" },
-      { "from": "dist-cli/rock.js", "to": "rock.js" }
+      { "from": "dist-cli/rock.js", "to": "rock.js" },
+      { "from": "../code/theme/claude", "to": "themes/claude" }
     ],
     "npmRebuild": false,
     "buildDependenciesFromSource": false,

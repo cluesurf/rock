@@ -2,34 +2,31 @@
 /**
  * rock — companion CLI for Rock.app.
  *
- * Run via the bash launcher (Rock.app/Contents/Resources/rock)
- * which sets ELECTRON_RUN_AS_NODE=1 and execs Rock.app's
- * bundled Electron binary in Node mode. Users get this on
- * their PATH via the Homebrew cask's `binary` directive.
+ * Bundled into Rock.app's Resources/ and invoked via the
+ * bash launcher (Rock.app/Contents/Resources/rock) which
+ * sets ELECTRON_RUN_AS_NODE=1 and execs the bundled
+ * Electron in Node mode. Users get it on PATH via the
+ * Homebrew cask's `binary` directive.
  *
- * Subcommands:
- *
- *   rock                       Opens Rock.app at $PWD
- *   rock open [path]           Opens Rock.app at given dir
- *   rock bind                  Scaffolds .rock/code/ here
- *   rock list                  Lists running slabs (needs running Rock)
- *   rock send <slab> <text>    Injects keystrokes into a slab
- *   rock focus <slab>          Activates a slab
- *   rock spawn [name] [--cwd]  Spawns a new slab
- *   rock kill <slab>           Kills a slab
- *   rock doctor                Health check (socket, app status)
- *   rock --help / --version
- *
- * Commands that need a running Rock.app talk to it via a
- * Unix-domain socket at $TMPDIR/rock.sock. The server lives
- * in code/node/ipc-server.ts and is started by boot.
+ * Commands that need a running Rock.app (list / send /
+ * focus / spawn / kill / doctor) talk to it over a
+ * Unix-domain socket at $TMPDIR/rock.sock. The server
+ * lives in code/node/ipc-server.ts.
  */
 
 import { createConnection } from 'node:net'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
-import { tmpdir, hostname } from 'node:os'
-import { join, resolve, isAbsolute } from 'node:path'
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir, hostname, homedir } from 'node:os'
+import { dirname, join, resolve, isAbsolute } from 'node:path'
 import { spawn } from 'node:child_process'
+import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers'
 
 const SOCKET = join(tmpdir(), 'rock.sock')
 const VERSION = '0.0.6'
@@ -57,16 +54,14 @@ function callRock(cmd: string, args?: unknown): Promise<Response> {
     let settled = false
     conn.setTimeout(5000)
     conn.on('connect', () => {
-      const req = JSON.stringify({ cmd, args })
-      conn.write(req + '\n')
+      conn.write(JSON.stringify({ cmd, args }) + '\n')
     })
     conn.on('data', chunk => {
       buf += chunk.toString('utf8')
       const idx = buf.indexOf('\n')
       if (idx < 0) return
-      const line = buf.slice(0, idx).trim()
       try {
-        const res = JSON.parse(line) as Response
+        const res = JSON.parse(buf.slice(0, idx).trim()) as Response
         settled = true
         conn.end()
         resolveP(res)
@@ -96,75 +91,34 @@ async function callOrDie(cmd: string, args?: unknown): Promise<unknown> {
 }
 
 // ────────────────────────────────────────────────────────
-// Subcommands
+// Commands
 // ────────────────────────────────────────────────────────
 
-function usage(): string {
-  return `\
-rock — companion CLI for Rock.app
-
-USAGE
-  rock [open] [path]      Open Rock.app, cwd defaulting to \$PWD
-  rock bind               Scaffold .rock/code/ for this project
-  rock list               List running slabs
-  rock send <slab> <text> Send keystrokes to a slab
-  rock focus <slab>       Activate a slab
-  rock spawn [name] [--cwd=path]
-                          Spawn a new slab (uses default shell)
-  rock kill <slab>        Kill a slab (and its PTY)
-  rock doctor             Health check
-  rock --help             Show this
-  rock --version          ${VERSION}
-
-EXAMPLES
-  cd ~/code/my-app && rock          # open here, project-scoped
-  rock open ~/other-project          # open elsewhere
-  rock spawn dev --cwd=~/code/site   # spawn a named shell
-  rock send dev "pnpm dev\\n"        # type into it
-  rock list                          # see what's running
-  rock kill dev                      # stop it
-`
-}
-
-async function cmdOpen(target: string): Promise<void> {
-  if (!existsSync(target)) {
-    process.stderr.write(`rock: not a directory: ${target}\n`)
-    process.exit(1)
+async function cmdOpen(targetPath: string): Promise<void> {
+  if (!existsSync(targetPath)) {
+    throw new Error(`not a directory: ${targetPath}`)
   }
-  const abs = isAbsolute(target) ? target : resolve(target)
-  // `open -a Rock --args "--cwd=..."` passes the dir to
-  // Rock.app's process.argv where base/boot/index.ts picks
-  // it up via projectRootFromArgv().
+  const abs = isAbsolute(targetPath) ? targetPath : resolve(targetPath)
   const proc = spawn('open', ['-a', 'Rock', '--args', `--cwd=${abs}`], {
     stdio: 'inherit',
     detached: true,
   })
   proc.on('error', err => {
-    process.stderr.write(`rock: failed to launch Rock.app: ${err.message}\n`)
-    process.exit(1)
+    throw new Error(`failed to launch Rock.app: ${err.message}`)
   })
   proc.unref()
 }
 
 function cmdBind(): void {
   if (existsSync('.rock')) {
-    process.stderr.write(`rock: .rock/ already exists in ${process.cwd()}\n`)
-    process.exit(1)
+    throw new Error(`.rock/ already exists in ${process.cwd()}`)
   }
   mkdirSync('.rock/code', { recursive: true })
   writeFileSync(
     '.rock/code/index.tsx',
     `\
-// .rock/code/index.tsx — your Rock workspace
-//
-// Whatever you default-export here becomes your Rock app.
-// All keys are optional; provide what you need.
-//
-//   workspace : the slabs (terminals) to spawn at launch
-//   Layout    : optional React component to replace the
-//               entire renderer
-//   Sidebar   : optional React component for just the sidebar
-//   commands  : optional command palette entries
+// .rock/code/index.tsx — your Rock workspace.
+// Whatever you default-export becomes your Rock app.
 
 import { workspace } from '@cluesurf/rock'
 
@@ -183,12 +137,12 @@ export default {
   )
   writeFileSync(
     '.rock/.gitignore',
-    `# Rock stores per-machine state here (window position,\n# tabs, last-known cwds). Don't commit it.\nbase.json\n`,
+    `# Rock stores per-machine state here. Don't commit it.\nbase.local.json\n.cache/\n`,
     'utf-8',
   )
   process.stdout.write(`rock: scaffolded .rock/ in ${process.cwd()}\n`)
-  process.stdout.write(`  • edit .rock/code/index.tsx to customize\n`)
-  process.stdout.write(`  • run \`rock\` here to launch Rock.app\n`)
+  process.stdout.write(`  edit .rock/code/index.tsx to customize\n`)
+  process.stdout.write(`  run \`rock\` here to launch Rock.app\n`)
 }
 
 async function cmdList(): Promise<void> {
@@ -196,24 +150,17 @@ async function cmdList(): Promise<void> {
     name: string
     status: string
     cwd?: string
-    program?: string
   }>
   if (slabs.length === 0) {
     process.stdout.write(`(no slabs)\n`)
     return
   }
-  const widths = {
-    name: Math.max(4, ...slabs.map(s => s.name.length)),
-    status: Math.max(6, ...slabs.map(s => s.status.length)),
-  }
+  const wName = Math.max(4, ...slabs.map(s => s.name.length))
+  const wStatus = Math.max(6, ...slabs.map(s => s.status.length))
   const pad = (s: string, w: number) => s + ' '.repeat(Math.max(0, w - s.length))
-  process.stdout.write(
-    `${pad('NAME', widths.name)}  ${pad('STATUS', widths.status)}  CWD\n`,
-  )
+  process.stdout.write(`${pad('NAME', wName)}  ${pad('STATUS', wStatus)}  CWD\n`)
   for (const slab of slabs) {
-    process.stdout.write(
-      `${pad(slab.name, widths.name)}  ${pad(slab.status, widths.status)}  ${slab.cwd ?? ''}\n`,
-    )
+    process.stdout.write(`${pad(slab.name, wName)}  ${pad(slab.status, wStatus)}  ${slab.cwd ?? ''}\n`)
   }
 }
 
@@ -235,109 +182,197 @@ async function cmdKill(slab: string): Promise<void> {
 }
 
 async function cmdDoctor(): Promise<void> {
-  const checks: Array<[string, boolean, string]> = []
-  // Socket presence — implies Rock.app is running (or
-  // crashed and left a stale socket; treat as running).
   const sockExists = existsSync(SOCKET)
-  checks.push(['IPC socket', sockExists, SOCKET])
+  process.stdout.write(`${sockExists ? '✓' : '✕'} IPC socket           ${SOCKET}\n`)
   if (sockExists) {
     try {
       const res = await callRock('ping')
-      checks.push(['Rock.app reachable', res.ok, res.ok ? 'pong' : (res as { error: string }).error])
+      process.stdout.write(
+        `${res.ok ? '✓' : '✕'} Rock.app reachable    ${res.ok ? 'pong' : (res as { error: string }).error}\n`,
+      )
     } catch (err) {
-      checks.push(['Rock.app reachable', false, String(err)])
+      process.stdout.write(`✕ Rock.app reachable    ${String(err)}\n`)
     }
   }
-  checks.push(['hostname', true, hostname()])
-  for (const [label, ok, info] of checks) {
-    const mark = ok ? '✓' : '✕'
-    process.stdout.write(`${mark} ${label.padEnd(20)}  ${info}\n`)
+  process.stdout.write(`✓ hostname              ${hostname()}\n`)
+  process.stdout.write(`✓ COLORTERM             ${process.env.COLORTERM ?? '(unset)'}\n`)
+  process.stdout.write(`✓ TERM                  ${process.env.TERM ?? '(unset)'}\n`)
+}
+
+async function cmdInstallTheme(target: string): Promise<void> {
+  // Bundled theme dir = Rock.app/Contents/Resources/themes/<target>/.
+  const here = dirname(new URL(import.meta.url).pathname)
+  const sourceDir = join(here, 'themes', target)
+  if (!existsSync(sourceDir)) {
+    throw new Error(
+      `no bundled themes for '${target}'. Looked in: ${sourceDir}`,
+    )
+  }
+  const installs: Record<string, string> = {
+    claude: join(homedir(), '.claude', 'themes'),
+  }
+  const targetDir = installs[target]
+  if (!targetDir) {
+    throw new Error(
+      `'${target}' isn't a known target. Supported: ${Object.keys(installs).join(', ')}`,
+    )
+  }
+  mkdirSync(targetDir, { recursive: true })
+  const files = readdirSync(sourceDir).filter(f => f.endsWith('.json'))
+  if (files.length === 0) throw new Error(`nothing to install in ${sourceDir}`)
+  for (const file of files) {
+    const src = join(sourceDir, file)
+    const dest = join(targetDir, file)
+    writeFileSync(dest, readFileSync(src, 'utf-8'), 'utf-8')
+    process.stdout.write(`  installed ${file} → ${dest}\n`)
+  }
+  if (target === 'claude') {
+    process.stdout.write(
+      `\nIn Claude Code, run /theme and pick "Rock Dark" or "Rock Light".\n`,
+    )
   }
 }
 
 // ────────────────────────────────────────────────────────
-// Arg parsing
+// CLI definition (yargs)
 // ────────────────────────────────────────────────────────
-
-function parseFlag(args: string[], name: string): string | undefined {
-  for (const a of args) {
-    if (a.startsWith(`--${name}=`)) return a.slice(name.length + 3)
-  }
-  return undefined
-}
 
 async function main(): Promise<void> {
-  const argv = process.argv.slice(2)
-  const cmd = argv[0] ?? 'open'
-  const rest = argv.slice(1)
+  const argv = hideBin(process.argv)
 
-  try {
-    switch (cmd) {
-      case '--help':
-      case '-h':
-      case 'help':
-        process.stdout.write(usage())
-        return
-      case '--version':
-      case '-v':
-      case 'version':
-        process.stdout.write(`rock ${VERSION}\n`)
-        return
-      case 'open':
-        await cmdOpen(rest[0] ?? process.cwd())
-        return
-      case 'bind':
-        cmdBind()
-        return
-      case 'list':
-      case 'list-slabs':
-        await cmdList()
-        return
-      case 'send':
-        if (rest.length < 2) {
-          process.stderr.write(`rock send: usage: rock send <slab> <text>\n`)
-          process.exit(1)
-        }
-        await cmdSend(rest[0]!, rest.slice(1).join(' '))
-        return
-      case 'focus':
-        if (!rest[0]) {
-          process.stderr.write(`rock focus: usage: rock focus <slab>\n`)
-          process.exit(1)
-        }
-        await cmdFocus(rest[0])
-        return
-      case 'spawn':
-        await cmdSpawn({
-          name: rest.find(a => !a.startsWith('--')),
-          cwd: parseFlag(rest, 'cwd'),
-        })
-        return
-      case 'kill':
-        if (!rest[0]) {
-          process.stderr.write(`rock kill: usage: rock kill <slab>\n`)
-          process.exit(1)
-        }
-        await cmdKill(rest[0])
-        return
-      case 'doctor':
-        await cmdDoctor()
-        return
-      default:
-        // Unknown command — if it looks like a path, treat as open.
-        if (existsSync(cmd)) {
-          await cmdOpen(cmd)
-          return
-        }
-        process.stderr.write(`rock: unknown command '${cmd}' — try 'rock --help'\n`)
-        process.exit(1)
-    }
-  } catch (err) {
-    process.stderr.write(
-      `rock: ${err instanceof Error ? err.message : String(err)}\n`,
-    )
-    process.exit(1)
+  // Subtle: `rock` with no args opens at $PWD. Yargs would
+  // normally show help; intercept that case first.
+  if (argv.length === 0) {
+    await cmdOpen(process.cwd())
+    return
   }
+
+  await yargs(argv)
+    .scriptName('rock')
+    .version(VERSION)
+    .usage('$0 <cmd> [args]')
+    .strict()
+    .demandCommand(1)
+    .recommendCommands()
+    .help()
+    .wrap(Math.min(100, process.stdout.columns ?? 100))
+    .command(
+      'open [path]',
+      'Open Rock.app at the given dir (default $PWD)',
+      y =>
+        y.positional('path', {
+          describe: 'Directory to open',
+          type: 'string',
+        }),
+      async args => {
+        await cmdOpen((args.path as string | undefined) ?? process.cwd())
+      },
+    )
+    .command(
+      'bind',
+      'Scaffold .rock/code/ for this project',
+      y => y,
+      () => cmdBind(),
+    )
+    .command(
+      'list',
+      'List running slabs',
+      y => y,
+      async () => {
+        await cmdList()
+      },
+    )
+    .command(
+      'send <slab> <text..>',
+      'Send keystrokes to a slab',
+      y =>
+        y
+          .positional('slab', { type: 'string', demandOption: true })
+          .positional('text', { type: 'string', array: true, demandOption: true }),
+      async args => {
+        const text = (args.text as string[]).join(' ')
+        await cmdSend(args.slab as string, text)
+      },
+    )
+    .command(
+      'focus <slab>',
+      'Activate a slab',
+      y => y.positional('slab', { type: 'string', demandOption: true }),
+      async args => {
+        await cmdFocus(args.slab as string)
+      },
+    )
+    .command(
+      'spawn [name]',
+      'Spawn a new slab',
+      y =>
+        y
+          .positional('name', {
+            describe: 'Slab name; auto-picked if omitted',
+            type: 'string',
+          })
+          .option('cwd', {
+            describe: 'Working directory for the new shell',
+            type: 'string',
+          }),
+      async args => {
+        await cmdSpawn({
+          name: args.name as string | undefined,
+          cwd: args.cwd as string | undefined,
+        })
+      },
+    )
+    .command(
+      'kill <slab>',
+      'Kill a slab and its PTY',
+      y => y.positional('slab', { type: 'string', demandOption: true }),
+      async args => {
+        await cmdKill(args.slab as string)
+      },
+    )
+    .command(
+      'install <kind> <target>',
+      "Install bundled config into another app (eg: 'install theme claude')",
+      y =>
+        y
+          .positional('kind', {
+            type: 'string',
+            choices: ['theme'] as const,
+            demandOption: true,
+          })
+          .positional('target', {
+            type: 'string',
+            demandOption: true,
+          }),
+      async args => {
+        if (args.kind === 'theme') {
+          await cmdInstallTheme(args.target as string)
+        }
+      },
+    )
+    .command(
+      'doctor',
+      'Health check (socket, app status, env)',
+      y => y,
+      async () => {
+        await cmdDoctor()
+      },
+    )
+    .epilogue(
+      'Rock.app docs: https://github.com/cluesurf/rock\n' +
+        'Companion CLI for the macOS terminal workspace.',
+    )
+    .fail((msg, err) => {
+      const message = err?.message ?? msg ?? 'unknown error'
+      process.stderr.write(`rock: ${message}\n`)
+      process.exit(1)
+    })
+    .parseAsync()
 }
 
-void main()
+void main().catch(err => {
+  process.stderr.write(
+    `rock: ${err instanceof Error ? err.message : String(err)}\n`,
+  )
+  process.exit(1)
+})

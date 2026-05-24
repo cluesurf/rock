@@ -57,14 +57,24 @@ done
 section "Background colors (regular)"
 for spec in "${COLORS[@]}"; do
   name="${spec%%:*}"; rest="${spec#*:}"; bg="${rest##*:}"
-  e "$bg"; printf '  %-15s                                 ' "$name"; r
+  # Pick a contrasting foreground per bg so the label is
+  # readable: bright white on dark bgs, black on light.
+  case "$name" in
+    black|blue|magenta) fg='97' ;;  # bright white
+    *)                  fg='30' ;;  # black
+  esac
+  e "$fg;$bg"; printf '  %-15s                                 ' "$name"; r
   printf '\n'
 done
 
 section "Background colors (bright)"
 for spec in "${BRIGHT[@]}"; do
   name="${spec%%:*}"; rest="${spec#*:}"; bg="${rest##*:}"
-  e "$bg"; printf '  %-15s                                 ' "$name"; r
+  case "$name" in
+    brightBlack|brightBlue|brightMagenta) fg='97' ;;
+    *)                                    fg='30' ;;
+  esac
+  e "$fg;$bg"; printf '  %-15s                                 ' "$name"; r
   printf '\n'
 done
 

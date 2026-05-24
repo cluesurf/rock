@@ -76,6 +76,7 @@
     "package:mac": "pnpm --filter @cluesurf/rock-base package:mac",
     "package:win": "pnpm --filter @cluesurf/rock-base package:win",
     "package:linux": "pnpm --filter @cluesurf/rock-base package:linux",
+    "install:theme:claude": "mkdir -p ~/.claude/themes && cp code/theme/claude/*.json ~/.claude/themes/ && echo 'installed Rock Dark + Rock Light into ~/.claude/themes/'",
     "ship": "bash task/ship.sh",
     "ship:cask-only": "ROCK_SKIP_BUILD=1 ROCK_SKIP_RELEASE=1 bash task/ship.sh",
     "ship:dry": "ROCK_SKIP_BUILD=1 ROCK_SKIP_RELEASE=1 ROCK_SKIP_CASK=1 bash task/ship.sh",
