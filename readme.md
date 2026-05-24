@@ -45,7 +45,19 @@ brew install --cask cluesurf/tool/rock
 The cask installs **Rock.app** to `/Applications` and symlinks the
 **`rock` CLI** to `/usr/local/bin/rock`.
 
-Library only (for projects that vendor Rock from npm):
+### A note on size
+
+Rock.app is **~280 MB installed** (~110 MB zipped download). That's
+the cost of shipping Chromium plus a Node runtime in one bundle.
+The same is true of every Electron app: Slack, Discord, VS Code,
+Notion, Linear, 1Password, Figma desktop, and ChatGPT desktop all
+land in the same 200 to 500 MB range for the same reason. The
+upside is that everything runs everywhere with no system Node, no
+system Chromium, and no version skew.
+
+### Library only
+
+For projects that vendor Rock from npm:
 
 ```bash
 pnpm add @cluesurf/rock
