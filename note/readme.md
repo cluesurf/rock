@@ -12,13 +12,7 @@
 
 ## Background
 
-| Doc                         | About                                                                                  |
-| --------------------------- | -------------------------------------------------------------------------------------- |
-| [landscape](./landscape.md) | The terminal world: native vs Electron vs multiplexer, tradeoff tables, where Rock fits |
+| Doc                         | About                                                                                              |
+| --------------------------- | -------------------------------------------------------------------------------------------------- |
+| [landscape](./landscape.md) | The terminal world: native vs Electron vs multiplexer, tradeoff tables, where Rock fits            |
 | [internals](./internals.md) | What's actually hard about building a terminal from scratch, and why Rock uses xterm.js + node-pty |
-
-## Operations
-
-| Doc                     | About                                               |
-| ----------------------- | --------------------------------------------------- |
-| [release](./release.md) | How we ship Rock.app + cask updates via `pnpm ship` |
