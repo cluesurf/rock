@@ -26,7 +26,6 @@ import { tmpdir, hostname, homedir } from 'node:os'
 import { dirname, join, resolve, isAbsolute } from 'node:path'
 import { spawn } from 'node:child_process'
 import yargs from 'yargs'
-import { hideBin } from 'yargs/helpers'
 
 const SOCKET = join(tmpdir(), 'rock.sock')
 const VERSION = '0.0.6'
@@ -238,7 +237,14 @@ async function cmdInstallTheme(target: string): Promise<void> {
 // ────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  const argv = hideBin(process.argv)
+  // Don't use yargs' hideBin: it special-cases Electron and
+  // does argv.slice(1) when process.versions.electron is
+  // truthy. That leaves the script path (rock.js) in argv
+  // because Rock.app runs as ELECTRON_RUN_AS_NODE=1 with
+  // its bundled Electron, which still reports as Electron.
+  // We always invoke as `Electron rock.js …`, so the
+  // standard Node-style slice(2) is correct.
+  const argv = process.argv.slice(2)
 
   // Subtle: `rock` with no args opens at $PWD. Yargs would
   // normally show help; intercept that case first.

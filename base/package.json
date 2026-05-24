@@ -1,6 +1,6 @@
 {
   "name": "@cluesurf/rock-base",
-  "version": "0.0.6",
+  "version": "0.1.2",
   "private": true,
   "description": "Rock.app — the host shell that loads a user's .rock/ config",
   "license": "GPL-3.0-or-later",
