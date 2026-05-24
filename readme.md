@@ -37,8 +37,8 @@ Rock sidebar has some nice keyboard stuff. But, like shadcn, could just
 use what we have in the `./base` folder here for inspriation to start
 over on interface :).
 
-Here's the default it ships with though, I think standardizing on
-something super minimal is all you really need.
+Here's the default it ships with though, something super minimal is all
+you really need IMO.
 
 <img src='https://github.com/cluesurf/rock/blob/make/view/screenshot.png?raw=true'/>
 
