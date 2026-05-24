@@ -373,6 +373,7 @@ export function makeLeaf(slabName: string, label?: string): LeafNode {
     id: makeNodeId('l'),
     slabName,
     label,
+
   }
 }
 
@@ -380,4 +381,59 @@ export function makeLeaf(slabName: string, label?: string): LeafNode {
  *  migrate from the pre-tree sidebar. */
 export function flatTree(slabNames: string[]): TreeNode[] {
   return slabNames.map(name => makeLeaf(name))
+}
+
+// ────────────────────────────────────────────────────────
+// Persistence helpers
+// ────────────────────────────────────────────────────────
+//
+// `id` is a runtime-only concern — used by React's key
+// prop, by drag-and-drop to identify the active row, and
+// by tree mutations like `findNode(tree, id)`. Across
+// process restarts, ids are meaningless: no external
+// reference holds them, and the user never sees them.
+//
+// We therefore STRIP ids when serializing the tree to
+// disk (`serializeTree`), and MINT FRESH ones when
+// loading (`hydrateTree`). Side benefit: hand-edited
+// base.local.json reads cleaner — no `id: "g_mpjizhm..."`
+// noise.
+
+type SerializedLeaf = Omit<LeafNode, 'id'>
+type SerializedGroup = Omit<GroupNode, 'id' | 'children'> & {
+  children: SerializedNode[]
+}
+type SerializedNode = SerializedLeaf | SerializedGroup
+
+/** Strip every `id` from the tree. Used when writing
+ *  `.rock/base.local.json` — the resulting JSON has
+ *  only the meaningful structure. */
+export function serializeTree(tree: TreeNode[]): SerializedNode[] {
+  return tree.map(node => {
+    if (node.kind === 'group') {
+      const { id: _id, children, ...rest } = node
+      return { ...rest, children: serializeTree(children) }
+    }
+    const { id: _id, ...rest } = node
+    return rest
+  })
+}
+
+/** Walk a serialized tree and mint a fresh id at every
+ *  node. Tolerates serialized trees that DO have ids
+ *  (older saves) — those are discarded and replaced. */
+export function hydrateTree(serialized: SerializedNode[]): TreeNode[] {
+  return serialized.map(node => {
+    if (node.kind === 'group') {
+      return {
+        ...node,
+        id: makeNodeId('g'),
+        children: hydrateTree(node.children),
+      }
+    }
+    return {
+      ...node,
+      id: makeNodeId('l'),
+    }
+  })
 }

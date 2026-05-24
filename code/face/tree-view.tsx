@@ -37,7 +37,9 @@ import {
   KeyboardSensor,
   useSensor,
   useSensors,
-  closestCenter,
+  pointerWithin,
+  rectIntersection,
+  MeasuringStrategy,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -65,6 +67,7 @@ import {
   type TreeNode,
 } from '@/base/tree'
 import { useTerminalStore } from './use-terminal-store'
+import { useTerminalApi } from './terminal-api'
 import { useSlabActivity, useCommandDuration } from './use-slab-activity'
 
 export type TreeViewProps = {
@@ -353,28 +356,24 @@ export function TreeView({
 
     const overNode = findNode(tree, overId)
     // Groups: hovering over a group header is over-
-    // whelmingly "drop INTO this group" intent. We only
-    // interpret it as a sibling drop when the cursor is
-    // pinned to the very edge. EDGE is intentionally
-    // small (3px) and the empty-collapsed case skips the
-    // edge bands entirely — when there's no children
-    // showing, "after" doesn't separate the group from
-    // anything visible, so the 'after' band would be a
-    // landmine.
+    // whelmingly "drop INTO this group" intent. Treat it
+    // that way by default. The ONLY exception is a
+    // narrow 4px strip at the very top of the header,
+    // which means "drop as sibling ABOVE this group" so
+    // the user can still reach that position.
+    //
+    // We deliberately DON'T have an 'after group' edge
+    // band: it was a landmine that fired any time the
+    // cursor was near the bottom of the header, and the
+    // user has no good way to predict its exact size.
+    // To drop AFTER a group, the user drops onto the
+    // next visible row with position 'before' — same
+    // result, obvious visual feedback.
     if (overNode?.kind === 'group') {
-      const isEmptyCollapsed =
-        overNode.children.length === 0 ||
-        overNode.collapsed === true
-      let position: DropPosition
-      if (isEmptyCollapsed) {
-        position = 'inside'
-      } else {
-        const offset = activeCenter - overTop
-        const EDGE = 3
-        if (offset < EDGE) position = 'before'
-        else if (offset > overHeight - EDGE) position = 'after'
-        else position = 'inside'
-      }
+      const offset = activeCenter - overTop
+      const TOP_EDGE = 4
+      const position: DropPosition =
+        offset < TOP_EDGE ? 'before' : 'inside'
       setDropOver({ targetId: overId, position })
       return
     }
@@ -424,7 +423,32 @@ export function TreeView({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      // pointerWithin finds the sortable whose rect
+      // contains the cursor — direct mapping from "where
+      // is the user pointing" to "which row". closestCenter
+      // (the old setting) used the dragged item's center,
+      // which drifts away from the cursor as soon as the
+      // user grabs a row at a corner or moves quickly,
+      // and produced "the drop landed on the wrong row"
+      // surprises. Fall back to rectIntersection when
+      // pointerWithin yields nothing (cursor just outside
+      // any rect — happens at row gaps).
+      collisionDetection={(args) => {
+        const hits = pointerWithin(args)
+        return hits.length > 0 ? hits : rectIntersection(args)
+      }}
+      // Force dnd-kit to remeasure sortable rects on
+      // every drag (not just on first mount). Without
+      // this, after the tree mutates (a drop reorders
+      // items), the next drag uses the OLD rects from
+      // before the mutation — so drops land based on
+      // where rows USED to be. Switching apps and back
+      // works around it because the focus/blur cycle
+      // forces a layout flush + remeasure; we shouldn't
+      // require the user to know that trick.
+      measuring={{
+        droppable: { strategy: MeasuringStrategy.Always },
+      }}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
@@ -434,6 +458,38 @@ export function TreeView({
         data-rock-tree=""
         role="tree"
         className={className}
+        // Click on the tree's blank area (NOT a row) →
+        // deselect. We use `event.target === rootRef.current`
+        // to detect "click landed on the container itself,
+        // not bubbled from a child row". Combined with the
+        // blur below, this exits the tree's keyboard
+        // context so global Cmd+→ / Cmd+← (expand-all /
+        // collapse-all) can fire.
+        onMouseDown={(event) => {
+          if (event.target === rootRef.current) {
+            setFocusedId(null)
+            if (document.activeElement instanceof HTMLElement) {
+              document.activeElement.blur()
+            }
+          }
+        }}
+        // Escape from any row → deselect + blur. Row-level
+        // handleKeyDown's only stop propagation on keys
+        // they explicitly handle, so Escape bubbles up to
+        // here cleanly. After this, document.activeElement
+        // is no longer inside [data-rock-tree], so the
+        // global Cmd+→ / Cmd+← bindings in the host shell
+        // fire (they guard on tree containment).
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            event.stopPropagation()
+            setFocusedId(null)
+            if (document.activeElement instanceof HTMLElement) {
+              document.activeElement.blur()
+            }
+          }
+        }}
       >
         {tree.map(node => (
           <NodeRow
@@ -668,15 +724,10 @@ function GroupRow(props: NodeRowProps & { node: GroupNode }) {
           if (!isRenaming) onToggleCollapse(node.id)
           e.stopPropagation()
         }}
-        /* Double-click → rename. Mirror of LeafRow's
-           behavior so group + leaf feel consistent. The
-           single-click handler above only toggles
-           collapse / selects, so the double-click can
-           cleanly take over for rename. */
-        onDoubleClick={(e) => {
-          e.stopPropagation()
-          if (!isRenaming) onStartRename(node.id)
-        }}
+        /* No double-click. Rename via Enter on the
+           focused row. Double-click was creating
+           accidental rename mode when users were just
+           rapidly clicking around the sidebar. */
       >
         {isRenaming ? (
           <RenameInput
@@ -701,11 +752,13 @@ function GroupRow(props: NodeRowProps & { node: GroupNode }) {
             </span>
           </>
         )}
-        {/* Child count badge — always shown when the group
-            has children. CSS dims it when the group is
-            EXPANDED (children visible → count is
-            supplementary) and brightens it when COLLAPSED
-            (children hidden → count is the only signal). */}
+        {/* Aggregate status dot — reflects whatever any
+            descendant leaf is doing. Empty groups show ᛫
+            (idle); any descendant running → ○; any
+            descendant currently emitting output → ●. */}
+        <GroupStatusDot group={node} />
+        {/* Child count badge — always shown. CSS dims it
+            when EXPANDED, brightens it when COLLAPSED. */}
         <GroupCount group={node} />
       </div>
       {!node.collapsed && (
@@ -873,7 +926,6 @@ function LeafRow(props: NodeRowProps & { node: LeafNode }) {
         transition: sortable.transition,
       }}
       onClick={() => onActivateLeaf(node)}
-      onDoubleClick={() => onStartRename(node.id)}
       onKeyDown={handleKeyDown}
       onFocus={() => setFocusedId(node.id)}
     >
@@ -1025,6 +1077,93 @@ function useAsymmetricStable(
  * signal) and brightens it when collapsed (count = only
  * signal that there's stuff hidden).
  */
+/**
+ * Group-level status dot. Walks every descendant leaf
+ * and aggregates:
+ *
+ *   any descendant busy   → ● (with asymmetric debounce)
+ *   else any running      → ○
+ *   else (empty / exited) → ᛫
+ *
+ * Lets the user see at-a-glance whether anything inside
+ * a collapsed group is currently doing work, without
+ * expanding the group to check.
+ */
+function GroupStatusDot({ group }: { group: GroupNode }) {
+  const slabIdByName = useTerminalStore(s => s.slabIdByName)
+  const slabs = useTerminalStore(s => s.slabs)
+
+  // Collect every descendant slabId once per render.
+  const descendantSlabIds = useMemo(() => {
+    const ids: string[] = []
+    function walk(nodes: TreeNode[]) {
+      for (const n of nodes) {
+        if (n.kind === 'group') walk(n.children)
+        else {
+          const id = slabIdByName[n.slabName]
+          if (id) ids.push(id)
+        }
+      }
+    }
+    walk(group.children)
+    return ids
+  }, [group, slabIdByName])
+
+  // Subscribe to slab:data for ANY descendant slab. Any
+  // arriving byte flips `anyBusy` true; goes false after
+  // 250ms of quiet across all descendants.
+  const api = useTerminalApi()
+  const [anyBusyRaw, setAnyBusyRaw] = useState(false)
+  useEffect(() => {
+    if (descendantSlabIds.length === 0) {
+      setAnyBusyRaw(false)
+      return
+    }
+    const set = new Set(descendantSlabIds)
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const off = api.onEvent(event => {
+      if (event.type !== 'slab:data') return
+      if (!set.has(event.payload.slabId)) return
+      setAnyBusyRaw(true)
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => setAnyBusyRaw(false), 250)
+    })
+    return () => {
+      off()
+      if (timer) clearTimeout(timer)
+    }
+  }, [api, descendantSlabIds])
+
+  const stableBusy = useAsymmetricStable(anyBusyRaw, 300, 4300)
+  const anyRunning = descendantSlabIds.some(
+    id => slabs[id]?.status === 'running' || slabs[id]?.status === 'starting',
+  )
+
+  let char: string
+  let dataStatus: string
+  if (stableBusy && anyRunning) {
+    char = '●'
+    dataStatus = 'busy'
+  } else if (anyRunning) {
+    char = '○'
+    dataStatus = 'running'
+  } else {
+    char = '᛫'
+    dataStatus = 'idle'
+  }
+
+  return (
+    <span
+      data-rock-leaf-dot=""
+      data-status={dataStatus}
+      aria-label={dataStatus}
+      style={{ marginLeft: 'auto', marginRight: 6 }}
+    >
+      {char}
+    </span>
+  )
+}
+
 function GroupCount({ group }: { group: GroupNode }) {
   const total = useMemo(() => {
     let t = 0
@@ -1037,7 +1176,9 @@ function GroupCount({ group }: { group: GroupNode }) {
     walk(group.children)
     return t
   }, [group])
-  if (total === 0) return null
+  // Always render — even 0 reads as "this is a group,
+  // it's just empty right now". Without it, an empty
+  // group is visually indistinguishable from a leaf.
   return (
     <span
       data-rock-branch-count=""

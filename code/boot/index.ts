@@ -47,7 +47,11 @@ import {
   type TabState,
 } from '@/node'
 import { startRockIpcServer } from '@/node/ipc-server'
-import type { TreeNode } from '@/base/tree'
+import {
+  hydrateTree,
+  serializeTree,
+  type TreeNode,
+} from '@/base/tree'
 
 // Register the rock:// scheme as privileged. Must run
 // BEFORE app.whenReady(). Side-effect at module load.
@@ -254,7 +258,12 @@ export async function boot(input: BootInput): Promise<AppHandle> {
     saveTimer = setTimeout(persistNow, 400)
   }
   function persistNow() {
-    if (!ensureRockFolder()) return
+    // Capture the folder path in a local so the type
+    // narrows from `string | null` to `string` for the
+    // save call at the end. `ensureRockFolder()` returns
+    // it, so this also avoids two property reads.
+    const folder = ensureRockFolder()
+    if (!folder) return
     if (saveTimer) {
       clearTimeout(saveTimer)
       saveTimer = null
@@ -271,7 +280,12 @@ export async function boot(input: BootInput): Promise<AppHandle> {
         {
           tabs,
           activeIndex: 0,
-          tree: liveTree ?? undefined,
+          // Strip runtime-only `id`s before writing to
+          // disk. Keeps base.local.json clean for hand
+          // editing.
+          tree: liveTree
+            ? (serializeTree(liveTree) as unknown as TreeNode[])
+            : undefined,
           position: focused
             ? (() => {
                 const b = focused.getBounds()
@@ -281,7 +295,7 @@ export async function boot(input: BootInput): Promise<AppHandle> {
         },
       ],
     }
-    saveProjectState(rockFolderPath, state)
+    saveProjectState(folder, state)
   }
 
   const wins = new Set<BrowserWindow>()
@@ -625,7 +639,15 @@ export async function boot(input: BootInput): Promise<AppHandle> {
   // Live sidebar tree. null = consumer hasn't set one yet
   // (use flat fallback). Persisted from .rock/base.json on
   // load + saved on every rock:save-tree IPC.
-  let liveTree: TreeNode[] | null = persistedWindow?.tree ?? null
+  // Hydrate the persisted tree: the saved JSON has no
+  // `id` field on any node (serializeTree strips them
+  // because ids are runtime-only). We mint fresh ids
+  // here so React keys / drag identity / findNode work
+  // immediately. Tolerates old saves that DO have ids —
+  // hydrateTree discards them.
+  let liveTree: TreeNode[] | null = persistedWindow?.tree
+    ? hydrateTree(persistedWindow.tree as unknown as Parameters<typeof hydrateTree>[0])
+    : null
 
   ipcMain.handle('rock:get-tree', () => liveTree)
   ipcMain.handle(

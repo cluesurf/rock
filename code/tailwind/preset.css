@@ -109,8 +109,6 @@
   [data-rock-branch-label] {
     /* NOT flex-1 — let the caret sit next to the label
        instead of being pushed all the way right. */
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -161,11 +159,27 @@
     background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 6%, transparent);
   }
   [data-rock-leaf][data-active='true'] {
-    /* Active leaf — pure white text, slightly brighter bg
-       than the group header strip (fg @ 8%) so selection
-       reads. */
-    background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 16%, transparent);
+    /* Active leaf = the currently-running tab. We mark it
+       with white text + a 2px violet accent bar on the
+       left edge — NO bg fill. The bg fill is reserved
+       for the SELECTED state (data-focused='true'). That
+       way "active" and "selected" are visually
+       independent: clicking a group while the active
+       leaf stays active no longer makes both rows look
+       selected at once. */
     color: #ffffff;
+    position: relative;
+  }
+  [data-rock-leaf][data-active='true']::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: var(--rock-accent, #8b5cf6);
+    border-radius: 0 2px 2px 0;
+    pointer-events: none;
   }
 
   /* Selected row — applies to BOTH leaf and group header.
@@ -182,11 +196,14 @@
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rock-accent, #8b5cf6) 50%, transparent);
   }
   /* When a leaf is BOTH the active running tab AND the
-     focused selection, hold the focused bg (24%) so
-     selection still reads above the active-tab style. */
+     focused selection, the focused-row rule's 24% bg +
+     violet ring already covers it. The active-tab style
+     contributes its white text + left accent bar on top,
+     which compose cleanly. Bump the ring opacity a hair
+     so the combined state reads slightly more emphatic
+     than plain selection. */
   [data-rock-leaf][data-active='true'][data-focused='true'] {
-    background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 24%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rock-accent, #8b5cf6) 55%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rock-accent, #8b5cf6) 65%, transparent);
   }
   [data-rock-leaf-dot] {
     /* Smaller + 70% opacity so the dot reads as a quiet
@@ -197,11 +214,12 @@
     @apply text-[10px] leading-none;
     opacity: 0.7;
   }
-  [data-rock-leaf-dot][data-status='running']  { color: var(--rock-status-running, #059669); /* emerald-600 */ }
-  [data-rock-leaf-dot][data-status='exited']   { color: var(--rock-status-exited, #52525b); /* zinc-600 */ }
-  [data-rock-leaf-dot][data-status='failed']   { color: var(--rock-status-failed, #e11d48); /* rose-600 */ }
-  [data-rock-leaf-dot][data-status='starting'] { color: var(--rock-status-starting, #ca8a04); /* yellow-600 */ }
-  [data-rock-leaf-dot][data-status='idle']     { color: var(--rock-status-idle, #52525b);   /* zinc-600 */ }
+  [data-rock-leaf-dot][data-status='running']  { color: var(--rock-status-running, #10b981); /* emerald-500 — bright enough to spot ○ */ }
+  [data-rock-leaf-dot][data-status='busy']     { color: var(--rock-status-busy, #10b981);    /* emerald-500 — same family as running */ }
+  [data-rock-leaf-dot][data-status='exited']   { color: var(--rock-status-exited, #52525b);  /* zinc-600 */ }
+  [data-rock-leaf-dot][data-status='failed']   { color: var(--rock-status-failed, #e11d48);  /* rose-600 */ }
+  [data-rock-leaf-dot][data-status='starting'] { color: var(--rock-status-starting, #ca8a04);/* yellow-600 */ }
+  [data-rock-leaf-dot][data-status='idle']     { color: var(--rock-status-idle, #52525b);    /* zinc-600 */ }
   [data-rock-leaf-icon] { color: var(--rock-muted, #71717a); }
   [data-rock-leaf-label] { @apply flex-1 truncate; }
   [data-rock-leaf-actions] { @apply ml-auto; }
