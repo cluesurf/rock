@@ -42,6 +42,11 @@ something super minimal is all you really need.
 
 <img src='https://github.com/cluesurf/rock/blob/make/view/screenshot.png?raw=true'/>
 
+_(See the [./note](https://github.com/cluesurf/rock/tree/make/note)
+folder here for some explanation/elaboration on the terminal landscape
+and building one from scratch, and why not, and what's around, and other
+interesting tidbits)._
+
 ## Install
 
 Mac:
