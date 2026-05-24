@@ -227,6 +227,18 @@ export default defineConfig({
         allow: [resolve(__dirname, '..')],
       },
     },
+    // Pre-bundle npm deps used by the rock lib (../code/)
+    // explicitly. Without this, vite discovers them lazily
+    // at first import — and if the dep was added to
+    // package.json mid-`pnpm dev` (after the server was
+    // already running), vite caches the failed resolution
+    // and the user has to restart the dev server to
+    // recover. Listing them here forces vite to pre-bundle
+    // them on startup, so as long as they're installed
+    // before `pnpm dev` boots, they Just Work.
+    optimizeDeps: {
+      include: ['fuse.js'],
+    },
     build: {
       outDir: resolve(__dirname, 'make/renderer'),
       emptyOutDir: true,

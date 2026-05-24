@@ -120,6 +120,28 @@ export function TreeView({
   const [dropOver, setDropOver] = useState<DropOverState>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
 
+  // Sync focusedId to whichever leaf maps to the active
+  // slab. Without this, programmatic navigation (Cmd+P
+  // palette, Cmd+Shift+] cycle, anything that calls
+  // setActiveSlab without DOM-focusing the corresponding
+  // leaf button) leaves the previously-clicked leaf still
+  // showing the "selected" bg + ring while the active row
+  // is marked with the violet accent bar — two visually-
+  // selected rows at once. Tying focusedId to activeSlabId
+  // here keeps the sidebar honest about there being only
+  // one selection.
+  const activeSlabId = useTerminalStore(s => s.activeSlabId)
+  const slabIdByName = useTerminalStore(s => s.slabIdByName)
+  useEffect(() => {
+    if (!activeSlabId) return
+    const slabName = Object.keys(slabIdByName).find(
+      n => slabIdByName[n] === activeSlabId,
+    )
+    if (!slabName) return
+    const leaf = flattenLeaves(tree).find(l => l.slabName === slabName)
+    if (leaf) setFocusedId(leaf.id)
+  }, [activeSlabId, slabIdByName, tree])
+
   // Clear focus when user clicks anywhere outside the tree
   // (sidebar background, terminal, etc.). The visual focus
   // ring tracks focusedId, so this also clears the ring.

@@ -14,18 +14,23 @@
  * it in `.rock/layout.tsx` and Rock JIT-compiles it.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import {
   Slab,
   Dock,
+  Find,
   Keys,
+  Palette,
   TreeView,
   loadUserModule,
   useAnyBusySlabs,
+  useFind,
+  usePalette,
   useRockTheme,
   useTerminalApi,
   useTerminalStore,
+  type PaletteCommand,
 } from '@cluesurf/rock/face'
 import {
   flatTree,
@@ -135,8 +140,16 @@ function Splash({ text }: { text: string }) {
 }
 
 function DefaultShell() {
+  // draggable={false} disables Slab's built-in 28px-tall
+  // absolute drag region. That region overlays the top of
+  // EVERYTHING (including the sidebar) and Electron's
+  // -webkit-app-region: drag captures the area as a window
+  // drag handle even with pointer-events: none, which makes
+  // the top sidebar row unclickable. ShellContent installs
+  // its own drag region INSIDE <main> below so the sidebar
+  // stays fully clickable.
   return (
-    <Slab theme={rock}>
+    <Slab theme={rock} draggable={false}>
       <ShellContent />
     </Slab>
   )
@@ -149,6 +162,65 @@ function collectSlabNames(tree: TreeNode[], out: Set<string>): void {
     if (node.kind === 'leaf') out.add(node.slabName)
     else collectSlabNames(node.children, out)
   }
+}
+
+// Flatten a sidebar tree into one entry per leaf, with the
+// breadcrumb of ancestor group labels prefixed and the
+// leaf's display label (custom label if set, else slabName)
+// appended last. Powers the Cmd+P palette so the user sees
+// the leaf's full position in the sidebar.
+function flattenTreeToPaths(
+  tree: TreeNode[],
+  labels: Record<string, string>,
+  parentPath: string[] = [],
+): Array<{ leaf: LeafNode; path: string[] }> {
+  const result: Array<{ leaf: LeafNode; path: string[] }> = []
+  for (const node of tree) {
+    if (node.kind === 'leaf') {
+      const display = node.label ?? labels[node.slabName] ?? node.slabName
+      result.push({ leaf: node, path: [...parentPath, display] })
+    } else {
+      const childPath = [...parentPath, node.label]
+      result.push(
+        ...flattenTreeToPaths(node.children, labels, childPath),
+      )
+    }
+  }
+  return result
+}
+
+// Walk the tree and return a copy where every group on the
+// path to the given leaf id has collapsed: false. Used when
+// the palette navigates to a leaf — we want the sidebar to
+// scroll/expand to show where the user landed, not leave it
+// hidden behind a collapsed parent.
+function expandPathToLeaf(
+  tree: TreeNode[],
+  leafId: string,
+): { tree: TreeNode[]; changed: boolean } {
+  let changedAnywhere = false
+  function recurse(nodes: TreeNode[]): {
+    nodes: TreeNode[]
+    foundLeaf: boolean
+  } {
+    let found = false
+    const next: TreeNode[] = nodes.map(node => {
+      if (node.kind === 'leaf') {
+        if (node.id === leafId) found = true
+        return node
+      }
+      const r = recurse(node.children)
+      if (r.foundLeaf) {
+        found = true
+        if (node.collapsed) changedAnywhere = true
+        return { ...node, children: r.nodes, collapsed: false }
+      }
+      return node.children === r.nodes ? node : { ...node, children: r.nodes }
+    })
+    return { nodes: next, foundLeaf: found }
+  }
+  const result = recurse(tree)
+  return { tree: result.nodes, changed: changedAnywhere }
 }
 
 function clampWidth(n: number): number {
@@ -257,6 +329,12 @@ function ShellContent() {
   // saved back to disk on every mutation. If no persisted
   // tree exists, fall back to a flat list of every slab.
   const [tree, setTree] = useState<TreeNode[] | null>(null)
+  // Always-fresh tree ref for closures (bindings memo,
+  // cycleSlab) that mustn't capture a stale tree snapshot.
+  const treeRef = useRef<TreeNode[] | null>(null)
+  useEffect(() => {
+    treeRef.current = tree
+  }, [tree])
   useEffect(() => {
     let cancelled = false
     const load = async () => {
@@ -430,6 +508,43 @@ function ShellContent() {
     [slabIdByName],
   )
 
+  // Cmd+P palette: every leaf in the sidebar tree becomes
+  // a fuzzy-searchable entry. Selecting one expands any
+  // collapsed ancestor groups (so the leaf is visible in
+  // the sidebar), then calls the same handleActivateLeaf
+  // the sidebar uses, which sets the active slab. After the
+  // palette closes, the dock's existing focus-on-active rule
+  // refocuses the xterm.
+  const paletteCommands = useMemo<PaletteCommand[]>(() => {
+    if (!tree) return []
+    return flattenTreeToPaths(tree, labels).map(({ leaf, path }) => ({
+      label: path[path.length - 1] ?? leaf.slabName,
+      path,
+      group: 'Slab',
+      action: () => {
+        setTree(prev => {
+          if (!prev) return prev
+          const { tree: next, changed } = expandPathToLeaf(prev, leaf.id)
+          if (!changed) return prev
+          void window.app.saveTree?.(next)
+          return next
+        })
+        handleActivateLeaf(leaf)
+      },
+    }))
+  }, [tree, labels, handleActivateLeaf])
+
+  const palette = usePalette({
+    hotkey: 'cmd+p',
+    commands: paletteCommands,
+    placeholder: 'Go to slab…',
+  })
+
+  // Cmd+F search-in-terminal — the Find widget reads the
+  // active slab's SearchAddon (registered by each Dock on
+  // mount) and drives it for live in-buffer search.
+  const find = useFind({ hotkey: 'cmd+f' })
+
   // Auto-activate the first slab when nothing is active yet.
   useEffect(() => {
     if (!activeSlabId && slabNames.length > 0) {
@@ -591,19 +706,26 @@ function ShellContent() {
   }
 
   function cycleSlab(delta: number) {
-    const names = Object.keys(
-      useTerminalStore.getState().slabIdByName,
-    )
+    const state = useTerminalStore.getState()
+    const map = state.slabIdByName
+    // Walk the sidebar tree depth-first so cycling matches
+    // visual top-to-bottom order. Tree is read via ref so
+    // the bindings memo (deps: [setActive]) doesn't capture
+    // a stale snapshot.
+    const t = treeRef.current
+    const names: string[] =
+      t && t.length > 0
+        ? flattenLeaves(t)
+            .map(l => l.slabName)
+            .filter(n => map[n])
+        : Object.keys(map)
     if (names.length === 0) return
-    const currentId = useTerminalStore.getState().activeSlabId
-    const currentName = names.find(
-      n => useTerminalStore.getState().slabIdByName[n] === currentId,
-    )
+    const currentId = state.activeSlabId
+    const currentName = names.find(n => map[n] === currentId)
     const currentIndex = currentName ? names.indexOf(currentName) : -1
     const nextIndex =
       (currentIndex + delta + names.length) % names.length
-    const nextId =
-      useTerminalStore.getState().slabIdByName[names[nextIndex]!]
+    const nextId = map[names[nextIndex]!]
     if (nextId) setActive(nextId)
   }
 
@@ -622,12 +744,12 @@ function ShellContent() {
               borderRight: `1px solid ${ui.border}`,
             }}
           >
-            {/* Drag-region spacer so the macOS title bar
-                can be grabbed despite titleBarStyle hidden. */}
-            <div
-              className="h-10"
-              style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-            />
+            {/* No top spacer: the window is frameless (set
+                in boot/index.ts) so there are no traffic-light
+                buttons to reserve room for. The `<Slab>`'s
+                `data-rock-drag` strip (28px tall, absolutely
+                positioned at the top of the window) handles
+                window dragging across the whole top edge. */}
             {tree && (
               <TreeView
                 tree={tree}
@@ -663,6 +785,29 @@ function ShellContent() {
         className="flex-1 min-w-0 p-2 relative"
         style={{ background: ui.background }}
       >
+        {/* Drag region for the frameless window — covers the
+            top edge of the main pane only (NOT the sidebar)
+            so sidebar rows at y=0 stay clickable. Users
+            grab here to move the window. pointer-events:
+            none lets clicks pass through to xterm
+            underneath; -webkit-app-region: drag is the OS
+            hook that initiates window movement. */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 28,
+            zIndex: 50,
+            pointerEvents: 'none',
+            WebkitAppRegion: 'drag',
+          } as React.CSSProperties}
+        />
+        {/* Cmd+F find widget — pinned top-right of the
+            terminal pane via its own CSS rules. Hidden
+            when find.open is false. */}
+        <Find controller={find} />
         {/* Render every slab; hide all but the active one.
             xterm + PTY keep running in the background so
             switching tabs preserves scrollback + state. */}
@@ -681,6 +826,7 @@ function ShellContent() {
         })}
       </main>
       <Keys bindings={bindings} />
+      <Palette controller={palette} />
     </div>
   )
 }

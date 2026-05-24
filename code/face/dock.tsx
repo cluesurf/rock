@@ -7,6 +7,7 @@ import {
 } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
+import { registerSearchAddon, unregisterSearchAddon } from './search-registry'
 // Note: import '@xterm/xterm/css/xterm.css' must be done
 // by the consumer's renderer entry (eg. base/code/main.tsx)
 // to avoid TS errors on side-effect imports in this lib.
@@ -170,6 +171,10 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
 
     term.loadAddon(fit)
     term.loadAddon(search)
+    // Make this terminal's SearchAddon globally reachable
+    // by slabId so the Cmd+F find widget can drive it
+    // regardless of where it's mounted in the tree.
+    if (slabId) registerSearchAddon(slabId, search)
 
     // App-level shortcuts (Cmd+Backspace = close tab,
     // Cmd+T = new tab, Cmd+Shift+G = new group, Cmd+,
@@ -196,6 +201,8 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
         k === 'w' ||
         k === ',' ||
         k === 'b' ||
+        k === 'f' ||
+        k === 'p' ||
         (event.shiftKey && k === 'g') ||
         (event.shiftKey && (k === ']' || k === '['))
       ) {
@@ -230,6 +237,32 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
 
     term.open(container)
     fit.fit()
+
+    // Auto-hiding scrollbar. xterm's .xterm-viewport keeps
+    // a native scrollbar visible at all times by default,
+    // which adds visual noise to a terminal that's mostly
+    // text. We tag the viewport with data-scrolling="true"
+    // on scroll/hover and clear it after 800ms of
+    // inactivity. CSS handles the actual fade (see
+    // preset.css `.xterm-viewport::-webkit-scrollbar-thumb`
+    // rules). Listener cleanup happens in the cleanup
+    // function at the end of this effect.
+    const viewport = container.querySelector('.xterm-viewport') as HTMLElement | null
+    let scrollFadeTimer: ReturnType<typeof setTimeout> | null = null
+    const showScrollbar = () => {
+      if (!viewport) return
+      viewport.dataset.scrolling = 'true'
+      if (scrollFadeTimer !== null) clearTimeout(scrollFadeTimer)
+      scrollFadeTimer = setTimeout(() => {
+        delete viewport.dataset.scrolling
+        scrollFadeTimer = null
+      }, 800)
+    }
+    if (viewport) {
+      viewport.addEventListener('scroll', showScrollbar, { passive: true })
+      viewport.addEventListener('mouseenter', showScrollbar)
+      viewport.addEventListener('wheel', showScrollbar, { passive: true })
+    }
     // Auto-focus so the user can type immediately. Without
     // this, the cursor blinks but keystrokes don't reach
     // the PTY until the user clicks on the canvas.
@@ -373,6 +406,13 @@ export function Dock({ name, className, terminalOptions }: DockProps) {
       if (pendingResizeRef.current !== null) {
         clearTimeout(pendingResizeRef.current)
       }
+      if (scrollFadeTimer !== null) clearTimeout(scrollFadeTimer)
+      if (viewport) {
+        viewport.removeEventListener('scroll', showScrollbar)
+        viewport.removeEventListener('mouseenter', showScrollbar)
+        viewport.removeEventListener('wheel', showScrollbar)
+      }
+      if (slabId) unregisterSearchAddon(slabId)
       term.dispose()
       termRef.current = null
       fitRef.current = null

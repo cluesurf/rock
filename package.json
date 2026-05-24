@@ -90,7 +90,8 @@
     "publish:dry": "pnpm make && pnpm publish --access public --dry-run",
     "release:patch": "pnpm version patch && pnpm publish:npm",
     "release:minor": "pnpm version minor && pnpm publish:npm",
-    "release:major": "pnpm version major && pnpm publish:npm"
+    "release:major": "pnpm version major && pnpm publish:npm",
+    "load:test:zone": "cd test/zone && pnpm --dir ../.. dev:here"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.0",
@@ -100,6 +101,7 @@
     "@xterm/addon-search": "^0.16.0",
     "@xterm/addon-web-links": "^0.12.0",
     "@xterm/xterm": "^6.0.0",
+    "fuse.js": "^7.3.0",
     "zustand": "^5.0.13"
   },
   "peerDependencies": {

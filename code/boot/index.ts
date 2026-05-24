@@ -139,6 +139,12 @@ export interface BootWindowOptions {
   title?: string
   background?: string
   transparent?: boolean
+  /**
+   * Set explicitly to opt OUT of the frameless default and
+   * back into a standard macOS window with traffic-lights.
+   * Pair with `titleBarStyle` to control the title bar.
+   */
+  frame?: boolean
   titleBarStyle?: 'default' | 'hidden' | 'hiddenInset'
   fullscreen?: boolean
   minWidth?: number
@@ -454,12 +460,28 @@ export async function boot(input: BootInput): Promise<AppHandle> {
     const iconPath = locateIcon()
     const opts = input.window ?? {}
 
+    // Frameless by default: removes the macOS title bar +
+    // traffic-light buttons entirely so the sidebar can
+    // start at y=0 without a reserved gap. Window movement
+    // happens via the `<Slab>`'s `data-rock-drag` region.
+    // Close / minimize / maximize stay reachable via the
+    // standard keyboard shortcuts (Cmd+W, Cmd+M, Cmd+Ctrl+F).
+    // Users can opt back into a normal title bar by passing
+    // `window: { frame: true }` (or any explicit titleBarStyle)
+    // to bootRock — for those, we honor the supplied value
+    // and don't go frameless.
+    const wantsFrame = opts.frame === true || opts.titleBarStyle !== undefined
     const baseOptions: BrowserWindowConstructorOptions = {
       width: opts.width ?? 1400,
       height: opts.height ?? 900,
       title: opts.title ?? input.name,
       backgroundColor: opts.background ?? '#0b0d10',
-      titleBarStyle: opts.titleBarStyle ?? 'hiddenInset',
+      ...(wantsFrame
+        ? {
+            frame: opts.frame ?? true,
+            titleBarStyle: opts.titleBarStyle ?? 'hiddenInset',
+          }
+        : { frame: false }),
       transparent: opts.transparent,
       fullscreen: opts.fullscreen,
       minWidth: opts.minWidth,
@@ -515,14 +537,17 @@ export async function boot(input: BootInput): Promise<AppHandle> {
       win.loadFile(locateAsset('renderer/index.html'))
     }
 
-    const devtoolsMode = input.devtools ?? 'auto'
-    const inDev =
-      process.env.NODE_ENV === 'development' ||
-      Boolean(process.env.ELECTRON_RENDERER_URL)
-    if (
-      devtoolsMode === 'always' ||
-      (devtoolsMode === 'auto' && inDev)
-    ) {
+    // DevTools open only when explicitly requested via
+    // `bootRock({ devtools: 'always' })` or the
+    // ROCK_DEVTOOLS env var. The previous default ('auto')
+    // popped DevTools on every dev-mode launch which is
+    // disruptive in normal use — Cmd+Option+I is still
+    // wired by Electron's default editMenu / viewMenu for
+    // on-demand opening.
+    const devtoolsMode = input.devtools ?? 'never'
+    const wantDevtools =
+      devtoolsMode === 'always' || Boolean(process.env.ROCK_DEVTOOLS)
+    if (wantDevtools) {
       win.webContents.openDevTools({ mode: 'detach' })
     }
 

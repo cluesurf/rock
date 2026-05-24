@@ -34,7 +34,7 @@ a primitive on `@cluesurf/rock/face` and is meant to be swapped,
 restyled, or thrown out. Like shadcn, you can use the components in
 `./base` as a starting point or start over entirely.
 
-<img src='https://github.com/cluesurf/rock/blob/make/view/screenshot.png?raw=true'/>
+<img src='https://github.com/cluesurf/rock/blob/make/view/terminal-with-tons-of-sidebar-tabs.png?raw=true'/>
 
 _See the [./note](https://github.com/cluesurf/rock/tree/make/note)
 folder for explanation on the terminal landscape, why we built one,

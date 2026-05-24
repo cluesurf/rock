@@ -46,6 +46,15 @@
     background: var(--rock-bg, #09090b);
     color: var(--rock-fg, #e4e4e7);
     font-family: var(--rock-font, ui-monospace, SFMono-Regular, monospace);
+    /* Canonical UI font-size. EVERY descendant — tree, palette,
+       find widget, bar, dock chrome — inherits this unless the
+       element is an intentionally tiny decoration (status dots,
+       small badges) that opts into a smaller `text-xs`/`text-[10px]`.
+       Don't add `text-sm`/`text-base`/`text-lg` overrides for
+       normal UI text — let it inherit so the whole app stays at
+       one body size. */
+    font-size: 15px;
+    line-height: 1.45;
   }
   [data-rock-slab-header] {
     @apply flex items-center gap-2 px-3 py-1.5
@@ -84,7 +93,8 @@
        edge-to-edge inside the sidebar. Per-row left
        indent comes from inline paddingLeft on each
        NodeRow (depth-aware). */
-    @apply flex flex-col text-[15px] overflow-auto;
+    /* font-size inherited from [data-rock-slab] (15px). */
+    @apply flex flex-col overflow-auto;
     color: var(--rock-fg, #e4e4e7);
   }
   [data-rock-branch] {
@@ -92,7 +102,6 @@
   }
   [data-rock-branch-header] {
     @apply flex items-center gap-1 w-full py-1
-           text-[15px]
            cursor-pointer select-none border-0 text-left;
     /* Group label text. zinc-400 — sits between the
        leaf labels and the zinc-500 muted body. Reads
@@ -133,7 +142,7 @@
 
   [data-rock-leaf] {
     @apply flex items-center py-1
-           text-[15px] font-light text-left bg-transparent border-0 cursor-pointer
+           font-light text-left bg-transparent border-0 cursor-pointer
            select-none;
     /* HARD edge-to-edge — block-level with 100% width so
        the bg fills regardless of button defaults; zero
@@ -407,40 +416,249 @@
 
   /* ── Palette ───────────────────────────────────── */
 
+  /* Palette typography rule: every text element here
+     inherits the app's base font size (no `text-sm` / `text-base`
+     / `text-xs` overrides). The Sheet itself sits inside the
+     Slab which sets `font-size` on the root — palette content
+     matches the sidebar / chrome at the same scale. */
   [data-rock-palette] { @apply flex flex-col; }
   [data-rock-palette-input] {
-    @apply w-full px-4 py-3 bg-transparent border-0 text-base outline-none;
+    @apply w-full px-4 py-3 bg-transparent border-0 outline-none;
     color: var(--rock-fg, #e4e4e7);
     border-bottom: 1px solid var(--rock-border, #27272a);
+    /* Match the monospaced UI font that the Slab projects as
+       --rock-font. <input> resets font-family to a system
+       sans-serif by default; inherit isn't enough because
+       the Slab root never sets font-family on itself. */
+    font-family: var(--rock-font, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace);
+    font-size: inherit;
+    line-height: inherit;
   }
   [data-rock-palette-input]::placeholder {
     color: var(--rock-muted, #71717a);
+    font-family: var(--rock-font, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace);
+    font-size: inherit;
   }
   [data-rock-palette-list] {
     @apply flex flex-col max-h-96 overflow-auto py-1;
   }
   [data-rock-palette-empty] {
-    @apply px-4 py-3 text-sm;
+    @apply px-4 py-3;
     color: var(--rock-muted, #71717a);
   }
   [data-rock-palette-item] {
-    @apply flex items-center gap-2 px-4 py-2 cursor-pointer text-sm;
+    @apply flex items-center gap-2 px-4 py-2 cursor-pointer;
     color: var(--rock-fg, #e4e4e7);
   }
   [data-rock-palette-item][data-selected='true'] {
-    background: var(--rock-active-bg, #27272a);
+    /* Subtle row highlight: two shades darker than the
+       global --rock-active-bg (zinc-800) so the muted
+       breadcrumb segments + the › separators stay readable
+       against the selected background. */
+    background: #18181b; /* zinc-900 */
   }
   [data-rock-palette-item-icon] { color: var(--rock-muted, #71717a); }
-  [data-rock-palette-item-label] { @apply flex-1 truncate; }
+  /* Leaf name on the left, primary fg color. */
+  [data-rock-palette-item-label] {
+    @apply truncate;
+    color: var(--rock-fg, #e4e4e7);
+    flex: 0 1 auto;
+  }
   [data-rock-palette-item-group] {
-    @apply ml-2 text-xs;
+    @apply ml-2;
     color: var(--rock-muted, #71717a);
+  }
+  /* Path on the right — `group › group › group` segments,
+     de-emphasized one shade below the leaf so the eye lands
+     on the leaf first. */
+  [data-rock-palette-item-path] {
+    @apply ml-2 truncate;
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--rock-muted, #71717a); /* zinc-500 */
+  }
+  [data-rock-palette-path-seg] {
+    /* Each segment is inline; the separator span owns the
+       visible delimiter so we don't double up. */
+  }
+  [data-rock-palette-path-sep] {
+    color: var(--rock-muted, #71717a);
+  }
+  [data-rock-palette-match] {
+    color: var(--rock-accent, #8b5cf6);
   }
   [data-rock-palette-item-hotkey] {
     @apply ml-auto text-xs px-1.5 py-0.5 rounded;
     color: var(--rock-muted, #71717a);
     background: var(--rock-active-bg, #27272a);
     font-family: var(--rock-font, ui-monospace, monospace);
+  }
+
+  /* ── Find (Cmd+F in-terminal search) ────────────── */
+  /* Floating find bar pinned to the top-right of the
+     terminal pane. Container sets the canonical font for
+     everything inside; children all `inherit` so the bar
+     reads as one consistent block of UI text, and so the
+     bar doesn't change width as the count toggles between
+     "3 of 12" and "No results". */
+  [data-rock-find] {
+    @apply flex items-center gap-1 px-2 py-1.5 rounded shadow-lg;
+    position: absolute;
+    top: 6px;
+    right: 12px;
+    z-index: 60;
+    background: #18181b; /* zinc-900 */
+    border: 1px solid var(--rock-border, #27272a);
+    font-family: var(--rock-font, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace);
+    font-size: inherit;
+    line-height: inherit;
+    color: var(--rock-fg, #e4e4e7);
+    /* Opt OUT of the window-drag region that covers the
+       top 28px of the main pane. Without this, Electron's
+       app-region: drag captures clicks anywhere inside the
+       widget's first 28px (the input, all toggles, nav, X)
+       as window-drag-init events instead of normal DOM
+       clicks, making the widget feel broken. */
+    -webkit-app-region: no-drag;
+  }
+  [data-rock-find-input] {
+    @apply bg-transparent border-0 outline-none px-2 py-0.5 rounded;
+    color: var(--rock-fg, #e4e4e7);
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    width: 14rem;
+  }
+  [data-rock-find-input]::placeholder {
+    color: var(--rock-muted, #71717a);
+    font-family: inherit;
+    font-size: inherit;
+  }
+  /* Aa / ab / .* toggle buttons. Stretch to fill the full
+     inner height of the bar so the click target is large;
+     content stays centered. Inactive = muted gray glyph,
+     no bg. Active = violet glyph + faint violet bg so the
+     user knows the option is engaged. */
+  [data-rock-find-toggle] {
+    @apply flex items-center justify-center cursor-pointer rounded;
+    color: var(--rock-muted, #71717a);
+    background: transparent;
+    border: 0;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: 1;
+    align-self: stretch;
+    /* Cancel bar's py-1.5 (6px) vertically so the button
+       fills its full inner height. */
+    margin-top: -6px;
+    margin-bottom: -6px;
+    padding: 0 8px;
+  }
+  [data-rock-find-toggle]:hover {
+    background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 8%, transparent);
+    color: var(--rock-fg, #e4e4e7);
+  }
+  [data-rock-find-toggle][data-active='true'] {
+    color: var(--rock-accent, #8b5cf6);
+    background: color-mix(in srgb, var(--rock-accent, #8b5cf6) 18%, transparent);
+  }
+  /* "N of M" / "No results" counter.
+     Fixed width (NOT min-width) so the bar stays the same
+     overall size as the message toggles between e.g.
+     "3 of 3", "No results", and "1 of 9999". The widest
+     realistic content is "No results" (10 chars) — 7rem
+     gives that comfortable padding in monospace. */
+  [data-rock-find-count] {
+    @apply px-1 whitespace-nowrap;
+    color: var(--rock-muted, #71717a);
+    font-family: inherit;
+    font-size: inherit;
+    width: 7rem;
+    text-align: right;
+  }
+  /* Up / down navigation. Same full-height hit target as
+     the toggles. */
+  [data-rock-find-nav] {
+    @apply flex items-center justify-center cursor-pointer rounded;
+    color: var(--rock-muted, #71717a);
+    background: transparent;
+    border: 0;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: 1;
+    align-self: stretch;
+    margin-top: -6px;
+    margin-bottom: -6px;
+    padding: 0 8px;
+  }
+  [data-rock-find-nav]:hover {
+    background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 8%, transparent);
+    color: var(--rock-fg, #e4e4e7);
+  }
+  /* Close X. Stretches to the bar's full inner height and
+     extends to the right edge so the hit target is generous
+     (negative margins cancel the bar's surrounding padding).
+     Hover uses the same neutral zinc tint as the other
+     buttons — no red. The right side picks up the bar's
+     rounded corner. */
+  [data-rock-find-close] {
+    @apply flex items-center justify-center cursor-pointer;
+    color: var(--rock-muted, #71717a);
+    background: transparent;
+    border: 0;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: 1;
+    align-self: stretch;
+    /* Cancel the bar's py-1.5 (6px) + right px-2 (8px) so
+       the button fills edge-to-edge on its own corner. */
+    margin: -6px -8px -6px 4px;
+    padding: 0 12px;
+    border-radius: 0 calc(0.25rem - 1px) calc(0.25rem - 1px) 0;
+  }
+  [data-rock-find-close]:hover {
+    background: color-mix(in srgb, var(--rock-fg, #e4e4e7) 8%, transparent);
+    color: var(--rock-fg, #e4e4e7);
+  }
+
+  /* ── xterm scrollbar ────────────────────────────── */
+  /* The xterm viewport ships with a persistent native
+     scrollbar that adds visual noise in a mostly-text app.
+     Dock attaches scroll / wheel / mouseenter listeners
+     that tag the viewport with `data-scrolling="true"` and
+     clear it after 800ms. These rules render a 12px-wide
+     scrollbar that's invisible by default and fades in
+     while the attribute is set. */
+  .xterm-viewport {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 200ms ease-out;
+  }
+  .xterm-viewport[data-scrolling='true'] {
+    scrollbar-color: var(--rock-muted, #71717a) transparent;
+  }
+  .xterm-viewport::-webkit-scrollbar {
+    width: 12px;
+    background: transparent;
+  }
+  .xterm-viewport::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  /* Inset the thumb 3px on each side via a transparent
+     border + content-box clipping so the visible thumb is
+     ~6px wide inside the 12px gutter. */
+  .xterm-viewport::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    background-clip: content-box;
+    border: 3px solid transparent;
+    border-radius: 6px;
+    transition: background-color 200ms ease-out;
+  }
+  .xterm-viewport[data-scrolling='true']::-webkit-scrollbar-thumb {
+    background-color: var(--rock-muted, #71717a);
+  }
+  .xterm-viewport[data-scrolling='true']::-webkit-scrollbar-thumb:hover {
+    background-color: var(--rock-fg, #e4e4e7);
   }
 
   /* ── Toast ─────────────────────────────────────── */
