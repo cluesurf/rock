@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 # Release Rock.app to GitHub Releases + Homebrew tap.
 # Uses a fine-grained PAT + curl. No gh CLI, no broad
 # OAuth scopes.
@@ -189,16 +189,53 @@ if [ "${ROCK_SKIP_RELEASE:-0}" != "1" ]; then
       draft: false,
       prerelease: false
     }))")
+    # The POST often succeeds server-side even when curl errors out
+    # (slow response body, transient timeout). Run it with set +e so
+    # we can decide what to do based on the actual state on GitHub
+    # rather than dying mid-script.
+    set +e
     RELEASE_JSON="$(ghcurl -s -X POST \
       -H "Authorization: Bearer $TOKEN" \
       -H "Accept: application/vnd.github+json" \
       -d "$BODY" \
       "$API/repos/$REPO/releases")"
-    RELEASE_ID="$(node -e "
-      const r = JSON.parse(process.argv[1])
-      if (!r.id) { console.error('release create failed:', r.message); process.exit(1) }
-      console.log(r.id)
-    " "$RELEASE_JSON")"
+    post_exit=$?
+    RELEASE_ID="$(printf '%s' "$RELEASE_JSON" | node -e "
+      let buf = ''
+      process.stdin.on('data', d => buf += d)
+      process.stdin.on('end', () => {
+        try { const r = JSON.parse(buf); process.stdout.write(String(r.id || '')) }
+        catch { process.stdout.write('') }
+      })
+    " 2>/dev/null)"
+    set -e
+
+    # Fallback: if POST didn't produce a usable id (curl timeout,
+    # JSON parse error, 422 already_exists), re-look up by tag.
+    if [ -z "$RELEASE_ID" ]; then
+      echo "  POST returned no id (curl exit=$post_exit); looking up by tag"
+      sleep 1
+      RELEASE_JSON="$(ghcurl -s \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Accept: application/vnd.github+json" \
+        "$API/repos/$REPO/releases/tags/$TAG")"
+      RELEASE_ID="$(printf '%s' "$RELEASE_JSON" | node -e "
+        let buf = ''
+        process.stdin.on('data', d => buf += d)
+        process.stdin.on('end', () => {
+          try { const r = JSON.parse(buf); process.stdout.write(String(r.id || '')) }
+          catch { process.stdout.write('') }
+        })
+      " 2>/dev/null)"
+    fi
+
+    if [ -z "$RELEASE_ID" ]; then
+      echo "ERROR: could not create or find release $TAG" >&2
+      printf '%s\n' "$RELEASE_JSON" | head -c 500 >&2
+      echo "" >&2
+      exit 1
+    fi
+    echo "  release $TAG ready (id=$RELEASE_ID)"
   else
     echo "release $TAG already exists (id=$RELEASE_ID)"
   fi
