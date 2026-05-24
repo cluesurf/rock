@@ -31,7 +31,16 @@ and theme are all React components you import and recompose.
 
 Nothing about the chrome is fixed. Every part of the interface ships as
 a primitive on `@cluesurf/rock/face` and is meant to be swapped,
-restyled, or thrown out.
+restyled, or thrown out. You can build it however you want, you
+basically just have the terminal component that you really need, and
+Rock sidebar has some nice keyboard stuff. But, like shadcn, could just
+use what we have in the `./base` folder here for inspriation to start
+over on interface :).
+
+Here's the default it ships with though, I think standardizing on
+something super minimal is all you really need.
+
+<img src='https://github.com/cluesurf/rock/blob/make/view/screenshot.png?raw=true'/>
 
 ## Install
 
