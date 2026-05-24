@@ -1,16 +1,16 @@
 import type { RockTheme } from '@/base/theme'
 
 /**
- * ClueSurf light theme — mirror of `cluesurfDark` with
- * inverted base palette. Same color families (rose/emerald/
- * violet/zinc/blue/yellow/cyan) but the ANSI slots use the
- * darker shades that read on a near-white background.
+ * Rock light theme — mirror of `rockDark` with inverted base
+ * palette. Same color families (rose/emerald/violet/zinc/
+ * blue/yellow/cyan) but the ANSI slots use the darker shades
+ * that read on a near-white background.
  *
  * Background is zinc-50 (#fafafa). Accent is violet-600.
- * Pair: `@cluesurf/rock/theme/cluesurf/dark`.
+ * Pair: `@cluesurf/rock/theme/rock/dark`.
  */
-export const cluesurfLight: RockTheme = {
-  name: 'ClueSurf Light',
+export const rockLight: RockTheme = {
+  name: 'Rock Light',
   font: '"Noto Sans Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
   background: '#fafafa', // zinc-50
   foreground: '#18181b', // zinc-900 — primary text
@@ -44,4 +44,4 @@ export const cluesurfLight: RockTheme = {
   accent: '#7c3aed', // violet-600 — matches magenta for cohesion
 }
 
-export default cluesurfLight
+export default rockLight

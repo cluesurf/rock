@@ -7,8 +7,8 @@ JSON themes that mirror Rock's `cluesurf/dark` and
 
 | File              | Pairs with                                  |
 | ----------------- | ------------------------------------------- |
-| `rock-dark.json`  | `@cluesurf/rock/theme/cluesurf/dark`        |
-| `rock-light.json` | `@cluesurf/rock/theme/cluesurf/light`       |
+| `rock-dark.json`  | `@cluesurf/rock/theme/rock/dark`            |
+| `rock-light.json` | `@cluesurf/rock/theme/rock/light`           |
 
 Same color families across both: emerald greens, rose
 reds, violet accent, zinc grays.

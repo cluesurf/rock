@@ -1,7 +1,7 @@
 import type { RockTheme } from '@/base/theme'
 
 /**
- * ClueSurf dark theme. Built on Tailwind's palette:
+ * Rock dark theme. Built on Tailwind's palette:
  *   greens  → emerald
  *   reds    → rose
  *   purples → violet
@@ -9,10 +9,10 @@ import type { RockTheme } from '@/base/theme'
  *   blue, yellow, cyan → standard Tailwind
  *
  * Background is zinc-950 (#09090b). Accent is violet-400.
- * Pair: `@cluesurf/rock/theme/cluesurf/light`.
+ * Pair: `@cluesurf/rock/theme/rock/light`.
  */
-export const cluesurfDark: RockTheme = {
-  name: 'ClueSurf Dark',
+export const rockDark: RockTheme = {
+  name: 'Rock Dark',
   font: '"Noto Sans Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
   background: '#09090b', // zinc-950
   foreground: '#e4e4e7', // zinc-200
@@ -42,4 +42,4 @@ export const cluesurfDark: RockTheme = {
   accent: '#a78bfa', // violet-400 — matches magenta for cohesion
 }
 
-export default cluesurfDark
+export default rockDark

@@ -20,284 +20,265 @@
 
 ## Overview
 
-**A headless, hackable terminal system.**
+Rock is a **Mac terminal app** plus a **TypeScript library** for
+designing your own terminal UI.
 
-Rock is a TypeScript library for building Electron-based terminal
-workspace apps. It packages the slow parts (PTY lifecycle, IPC bridge,
-xterm.js rendering, layout splits, session persistence) so a consumer
-can focus on workspace UX, custom slab content, and orchestration.
+The app launches with a sensible default workspace. Drop a
+`.rock/code/index.tsx` file at the root of any project and Rock
+JIT-compiles it on launch. From that file the entire app surface
+can be replaced. The sidebar tree, status bar, command palette,
+keyboard map, and theme are all React components you import and
+recompose.
 
-**Headless**: components emit zero visual styling by default. Compose
-with Tailwind, CSS modules, styled-components, or vanilla CSS. The
-optional `@cluesurf/rock/tailwind/preset.css` gives sensible
-defaults in one line.
+Nothing about the chrome is fixed. Every part of the interface
+ships as a primitive on `@cluesurf/rock/face` and is meant to be
+swapped, restyled, or thrown out.
 
-**Hackable**: the workspace, layout, and sidebar are YOUR React tree
-using rock primitives (`<Nest>`, `<Slab>`, `<Dock>`, `<Tree>`,
-`<Bar>`, `<Palette>`). No DSL. No plugin lock-in. No prescribed app
-shape.
+## Install
 
-The public v1 API is intentionally narrow. A workspace is a named map
-of slabs. Layouts are JSX. Sidebars are JSX. No graph DSL, no plugin
-runtime to learn first. Compose like a normal React app with terminal
-slabs as components.
+Mac:
 
-The internal model is richer (stable slab IDs, IPC protocol, status
-events, persistent store) so that more advanced workspace
-orchestration, auto-discovery, plugins, and a daemon can be layered in
-later without reshaping the public API.
+```bash
+brew tap cluesurf/tool
+brew install --cask cluesurf/tool/rock
+```
 
-A consumer ships a `.rock/` folder at the project root containing
-`workspace.ts`, `layout.tsx`, `sidebar.tsx`, etc. The runtime loads
-those, spawns one PTY per slab, and renders the React UI inside
-Electron.
+The cask installs **Rock.app** to `/Applications` and symlinks
+the **`rock` CLI** to `/usr/local/bin/rock`.
+
+Library only (for projects that vendor Rock from npm):
+
+```bash
+pnpm add @cluesurf/rock
+pnpm add electron node-pty better-sqlite3 esbuild \
+  react react-dom
+```
+
+The npm package and the desktop app share the same source. Peer
+dependencies are optional and only need to be installed for the
+runtime context the consumer is targeting.
+
+## Quickstart
+
+```bash
+cd ~/code/some-project
+rock bind     # scaffolds .rock/code/index.tsx
+rock          # launches Rock.app at this project
+```
+
+The bound project gains:
+
+```
+.rock/
+├── code/
+│   └── index.tsx        workspace + optional UI components
+├── base.json            committed defaults
+├── base.local.json      per-machine state (gitignored)
+└── .gitignore           managed by Rock
+```
+
+A minimal `.rock/code/index.tsx`:
+
+```ts
+import { workspace } from '@cluesurf/rock'
+
+export default {
+  workspace: workspace({
+    name: 'some-project',
+    slabs: {
+      shell: {},
+      web:  { cwd: './site', command: 'pnpm dev' },
+      api:  { cwd: './base', command: 'pnpm dev' },
+      logs: { command: 'tail -f logs/app.log' },
+    },
+  }),
+}
+```
+
+Relaunching at the same directory spawns those tabs and restores
+sidebar layout, window size, and last-known cwds.
+
+## Build your own UI
+
+The `index.tsx` default export accepts a custom `Layout`,
+`Sidebar`, or both. Replace one slot and inherit the rest from
+Rock's default shell.
+
+```tsx
+import { workspace } from '@cluesurf/rock'
+import {
+  Slab, Dock, Nest, Tree, Branch, Leaf,
+  Bar, Cell, Palette, Sheet, Toast, Keys,
+  useTerminalStore,
+} from '@cluesurf/rock/face'
+import { rockDark } from '@cluesurf/rock/theme/rock/dark'
+
+function MyLayout() {
+  return (
+    <Slab theme={rockDark}>
+      <Nest direction="horizontal" ratio={0.25}>
+        <MySidebar />
+        <Nest direction="vertical" ratio={0.7}>
+          <Dock name="web" />
+          <Dock name="logs" />
+        </Nest>
+      </Nest>
+      <Bar>
+        <Cell>{useTerminalStore(s => s.activeSlabName)}</Cell>
+      </Bar>
+    </Slab>
+  )
+}
+
+function MySidebar() {
+  const slabs = useTerminalStore(s => Object.keys(s.slabIdByName))
+  return (
+    <Tree>
+      {slabs.map(name => (
+        <Leaf key={name} name={name} />
+      ))}
+    </Tree>
+  )
+}
+
+export default {
+  workspace: /* ... */,
+  Layout: MyLayout,
+  Sidebar: MySidebar,
+}
+```
+
+Every primitive is independent. A workspace can replace one of
+them, all of them, or none. Rock's default UI is itself written
+in these same components.
 
 ## Architecture
 
-Four layers, separated so the wrong runtime never imports the wrong
-code.
+Four layers, separated so the wrong runtime never imports the
+wrong code.
 
 | Layer                            | Module                     | Runtime  |
 | -------------------------------- | -------------------------- | -------- |
 | Pure types + IPC protocol        | `@cluesurf/rock/base/*`    | any      |
-| node-pty manager + SQLite store  | `@cluesurf/rock/node/*`    | Node     |
+| node-pty manager + persistence   | `@cluesurf/rock/node/*`    | Node     |
 | React components + Zustand store | `@cluesurf/rock/face/*`    | browser  |
 | Electron IPC bridge helpers      | `@cluesurf/rock/desktop/*` | Electron |
 
-| Concept           | Where                                                                   |
-| ----------------- | ----------------------------------------------------------------------- |
-| Slab lifecycle    | `code/node/terminal-manager.ts`                                         |
-| IPC protocol      | `code/base/protocol.ts`                                                 |
-| Workspace compile | `code/base/compile-workspace.ts`                                        |
-| Persistence       | `code/node/workspace-store.ts`                                          |
-| `.rock/` loader   | `code/node/rock-folder.ts`                                              |
-| JSX layout        | `code/face/layout-components.tsx` (`<Split>`, `<Slab>`)                 |
-| JSX sidebar       | `code/face/sidebar-components.tsx` (`<SidebarSection>`, `<SlabButton>`) |
-| Renderer slab     | `code/face/terminal-slab.tsx` (xterm.js wrapper)                        |
-| Preload bridge    | `code/desktop/preload-api.ts`                                           |
-| Main handler      | `code/desktop/main-handler.ts`                                          |
+| Concept                | Where                                   |
+| ---------------------- | --------------------------------------- |
+| Slab lifecycle (PTY)   | `code/node/terminal-manager.ts`         |
+| IPC protocol           | `code/base/protocol.ts`                 |
+| Workspace compile      | `code/base/compile-workspace.ts`        |
+| Per-project state      | `code/node/state-store.ts`              |
+| `.rock/` loader        | `code/node/rock-folder.ts`              |
+| User bundle JIT        | `code/node/layout-bundle.ts`            |
+| CLI socket server      | `code/node/ipc-server.ts`               |
+| Layout primitives      | `code/face/{nest,slab,dock}.tsx`        |
+| Sidebar tree           | `code/face/tree-view.tsx`               |
+| Status bar             | `code/face/bar.tsx`                     |
+| Command palette        | `code/face/palette.tsx`                 |
+| Modal sheets / toasts  | `code/face/{sheet,toast}.tsx`           |
+| Hotkey map             | `code/face/keys.tsx`                    |
+| Preload bridge         | `code/desktop/preload-api.ts`           |
+| Main handler           | `code/desktop/main-handler.ts`          |
+| Custom URL protocol    | `code/desktop/rock-protocol.ts`         |
 
-Slab records carry stable IDs. Symbolic slab names from the user's
-workspace map to those IDs at compile time. JSX components reference the
-symbolic name (`<Slab name="web" />`), the store does the lookup.
+Slab records carry stable IDs. Symbolic slab names from the
+user's workspace map to those IDs at compile time. JSX
+components reference the symbolic name (`<Dock name="web" />`)
+and the store resolves the lookup.
 
-The React layer never imports node-pty. node-pty never imports React.
-Electron IPC is the membrane between them.
+The React layer never imports node-pty. node-pty never imports
+React. Electron IPC is the membrane between them.
 
-## Installation
+## Public surface
+
+### From `@cluesurf/rock`
+
+```ts
+workspace, commands           // identity helpers for .rock/code/index.tsx
+```
+
+### From `@cluesurf/rock/face`
+
+```ts
+// Layout primitives
+Slab, Dock, Nest
+
+// Sidebar
+Tree, Branch, Leaf, TreeView
+
+// Chrome
+Bar, Cell, Palette, Sheet, Toast, Keys
+
+// Mounting
+mount, TerminalApiProvider, TerminalEvents
+
+// Hooks
+useTerminalStore, useTerminalApi, useSlabActivity, useKeys
+```
+
+### From `@cluesurf/rock/theme/*`
+
+```
+dracula
+one-dark
+solarized-dark
+solarized-light
+nord
+gruvbox-dark
+monokai
+tokyo-night
+rock/dark
+rock/light
+```
+
+Each theme is a plain object. Define a custom one:
+
+```ts
+import type { RockTheme } from '@cluesurf/rock/base'
+
+export const myTheme: RockTheme = {
+  name: 'My Theme',
+  font: '"JetBrains Mono", monospace',
+  background: '#0a0a0a',
+  foreground: '#fafafa',
+  accent: '#ff0080',
+  // ...
+}
+```
+
+## The `rock` CLI
+
+Installed alongside Rock.app. Talks to the running app over a
+Unix-domain socket.
 
 ```bash
-pnpm add @cluesurf/rock
-pnpm add node-pty better-sqlite3 \
-  @xterm/xterm @xterm/addon-fit \
-  @xterm/addon-web-links @xterm/addon-search \
-  zustand react react-dom
+rock                          # open Rock.app at $PWD
+rock open ~/other-project     # open at another path
+rock bind                     # scaffold .rock/code/index.tsx
+rock list                     # list active slabs
+rock spawn dev --cwd=./api    # spawn a new slab
+rock send dev "pnpm test\n"   # send keystrokes
+rock focus dev                # focus a slab
+rock kill dev                 # close a slab
+rock doctor                   # diagnose the install
+rock install theme claude     # install Rock themes into Claude Code
 ```
 
-Peers are optional. Install only the ones your runtime context needs.
+Useful in deploy scripts, editor commands, and CI hooks.
 
-## Quick Start
+## State model
 
-A minimum viable terminal workspace app is three files.
+Two files per project, field-merged on load.
 
-### `boot/main.ts`
+| File              | Committed | Purpose                                |
+| ----------------- | --------- | -------------------------------------- |
+| `base.json`       | yes       | Shared defaults (sidebar tree shape)   |
+| `base.local.json` | no        | Per-machine (cwds, window pos, sizes)  |
 
-```ts
-import { app, BrowserWindow } from 'electron'
-import path from 'node:path'
-import { TerminalManager } from '@cluesurf/rock/node/terminal-manager'
-import {
-  wireTerminalMain,
-  createWindowEmitter,
-} from '@cluesurf/rock/desktop/main-handler'
-
-let win: BrowserWindow | null = null
-
-const manager = new TerminalManager({
-  emit: createWindowEmitter(() => win),
-})
-
-wireTerminalMain({ manager })
-
-app.whenReady().then(() => {
-  win = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-    },
-  })
-  win.loadURL(
-    process.env.DEV_SERVER_URL ?? `file://${__dirname}/index.html`,
-  )
-})
-
-app.on('before-quit', () => manager.shutdown())
-```
-
-### `boot/preload.ts`
-
-```ts
-import { exposeTerminalApi } from '@cluesurf/rock/desktop/preload-api'
-
-exposeTerminalApi()
-```
-
-### `code/app.tsx`
-
-```tsx
-import { createRoot } from 'react-dom/client'
-import {
-  TerminalApiProvider,
-  TerminalEvents,
-  SidebarTree,
-  WorkspaceView,
-  useTerminalStore,
-} from '@cluesurf/rock/face'
-
-const api = (window as any).app.terminal
-
-function App() {
-  const workspace = useTerminalStore(state => state.workspaces[0])
-  return (
-    <TerminalApiProvider api={api}>
-      <TerminalEvents />
-      <div style={{ display: 'flex', height: '100vh' }}>
-        <SidebarTree />
-        <main style={{ flex: 1 }}>
-          {workspace && <WorkspaceView layout={workspace.layout} />}
-        </main>
-      </div>
-    </TerminalApiProvider>
-  )
-}
-
-createRoot(document.getElementById('root')!).render(<App />)
-```
-
-## Define a Workspace
-
-A workspace is a named map of slabs. The slab key is the symbolic name
-referenced from JSX layout and sidebar.
-
-```ts
-// .rock/workspace.ts
-import { defineWorkspace } from '@cluesurf/rock'
-
-export default defineWorkspace({
-  name: 'clue',
-  slabs: {
-    web: { cwd: './site', command: 'pnpm dev' },
-    api: { cwd: './base', command: 'pnpm dev' },
-    logs: { command: 'tail -f logs/app.log' },
-  },
-})
-```
-
-## JSX Layout
-
-Compose layouts in React. No custom AST, no DSL. `<Split>` is a flex
-container; `<Slab>` resolves a symbolic name to its compiled slab ID and
-renders an xterm.js terminal.
-
-```tsx
-// .rock/layout.tsx
-import { Split, Slab } from '@cluesurf/rock/face'
-
-export default function Layout() {
-  return (
-    <Split horizontal>
-      <Slab name="web" />
-      <Split vertical>
-        <Slab name="api" />
-        <Slab name="logs" />
-      </Split>
-    </Split>
-  )
-}
-```
-
-## JSX Sidebar
-
-```tsx
-// .rock/sidebar.tsx
-import { SidebarSection, SlabButton } from '@cluesurf/rock/face'
-
-export default function Sidebar() {
-  return (
-    <>
-      <SidebarSection title="App">
-        <SlabButton name="web" />
-        <SlabButton name="api" />
-      </SidebarSection>
-      <SidebarSection title="Infra">
-        <SlabButton name="logs" />
-      </SidebarSection>
-    </>
-  )
-}
-```
-
-## Named Commands
-
-```ts
-// .rock/commands.ts
-import { defineCommands } from '@cluesurf/rock'
-
-export default defineCommands({
-  deploy: { command: 'pnpm deploy', cwd: './ops' },
-  migrate: { command: 'pnpm migrate', cwd: './base' },
-})
-```
-
-Wire to a CLI (`rock run deploy`) or to the in-app command palette.
-
-## `.rock/` Folder Convention
-
-```
-~/.rock/                 global defaults
-project/.rock/           per-project workspace
-  workspace.ts           defineWorkspace export
-  layout.tsx             JSX layout
-  sidebar.tsx            JSX sidebar
-  commands.ts            defineCommands export
-  theme.ts               theme overrides
-```
-
-The runtime walks upward from cwd to find the nearest project `.rock/`,
-merges with `~/.rock/`, returns the resolved configuration.
-
-```ts
-import {
-  findRockFolders,
-  loadRockFolder,
-} from '@cluesurf/rock/node/rock-folder'
-
-const { projectRoot, globalRoot } = findRockFolders(process.cwd())
-const project = projectRoot ? await loadRockFolder(projectRoot) : null
-```
-
-## Persistence
-
-Workspaces, tabs, and slabs serialize to SQLite. Live shell memory is
-not persisted; on restore, the runtime re-spawns commands.
-
-```ts
-import { WorkspaceStore } from '@cluesurf/rock/node/workspace-store'
-
-const store = new WorkspaceStore('~/.rock/state/workspaces.db')
-store.saveWorkspace(workspace)
-const restored = store.listWorkspaces()
-```
-
-## Testing
-
-```bash
-pnpm test
-```
+Live shell memory is not persisted. On restore, slabs respawn
+their original commands.
 
 ## Scripts
 
@@ -305,13 +286,14 @@ pnpm test
 pnpm make       # compile to host/
 pnpm scan       # tsc watch + tsc-alias watch
 pnpm test       # vitest run
-pnpm test:watch # vitest watch
-pnpm lint       # eslint --fix
+pnpm dev        # run Rock.app in dev mode
+pnpm package    # package Rock.app for the current platform
+pnpm ship       # cut a release (notarize + publish cask)
 ```
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](./LICENSE).
+[GPL-3.0-or-later](./LICENSE).
 
 ## ClueSurf
 
@@ -322,4 +304,4 @@ Follow the work on [YouTube](https://youtube.com/@cluesurf),
 [Substack](https://cluesurf.substack.com),
 [Facebook](https://facebook.com/cluesurf), and
 [LinkedIn](https://linkedin.com/company/cluesurf), and browse more of
-our open-source work here on [GitHub](https://github.com/cluesurf).
+our open-source work on [GitHub](https://github.com/cluesurf).

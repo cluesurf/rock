@@ -149,7 +149,7 @@ cursor style. Pass to `<Slab theme={...}>` to apply.
 
 ```ts
 import { dracula } from '@cluesurf/rock/theme/dracula'
-import { cluesurfDark } from '@cluesurf/rock/theme/cluesurf/dark'
+import { rockDark } from '@cluesurf/rock/theme/rock/dark'
 // ...
 
 <Slab theme={dracula}>

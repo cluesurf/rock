@@ -12,8 +12,8 @@ launch.
    Electron shell. Renders ANSI faithfully, handles
    clipboard, hyperlinks, font metrics. Themed (Dracula,
    One Dark, Solarized, Nord, Gruvbox, Monokai, Tokyo
-   Night, ClueSurf Dark / Light) — bring your own as a
-   plain object.
+   Night, Rock Dark / Light). Bring your own as a plain
+   object.
 
 2. **A workspace manager.** Tabs (called "slabs") organized
    in a VSCode-style nested tree. Per-project state in

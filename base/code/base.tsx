@@ -34,7 +34,7 @@ import {
   type LeafNode,
   type TreeNode,
 } from '@cluesurf/rock/base'
-import { cluesurfDark as cluesurf } from '@cluesurf/rock/theme/cluesurf/dark'
+import { rockDark as rock } from '@cluesurf/rock/theme/rock/dark'
 
 type Phase =
   | { stage: 'loading' }
@@ -126,7 +126,7 @@ function Splash({ text }: { text: string }) {
   return (
     <div
       className="flex h-full w-full items-center justify-center"
-      style={{ background: cluesurf.background, color: cluesurf.brightBlack }}
+      style={{ background: rock.background, color: rock.brightBlack }}
     >
       {text}
     </div>
@@ -135,7 +135,7 @@ function Splash({ text }: { text: string }) {
 
 function DefaultShell() {
   return (
-    <Slab theme={cluesurf}>
+    <Slab theme={rock}>
       <ShellContent />
     </Slab>
   )
@@ -386,7 +386,7 @@ function ShellContent() {
   // Shell color palette. Chrome (sidebar + active row) is
   // one shade lighter than the terminal background so the
   // panes layer cleanly.
-  //   terminal:  theme.background       (zinc-950 for cluesurf)
+  //   terminal:  theme.background       (zinc-950 for rock)
   //   sidebar:   zinc-900 (one step up)
   //   active:    zinc-700 (clear contrast)
   const ui = {

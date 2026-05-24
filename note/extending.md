@@ -91,11 +91,11 @@ Replace the entire renderer:
 
 ```tsx
 import { Slab, Dock, Nest, TreeView, useTerminalStore } from '@cluesurf/rock/face'
-import { cluesurfDark } from '@cluesurf/rock/theme/cluesurf/dark'
+import { rockDark } from '@cluesurf/rock/theme/rock/dark'
 
 function MyLayout() {
   return (
-    <Slab theme={cluesurfDark}>
+    <Slab theme={rockDark}>
       <Nest direction="horizontal" ratio={0.3}>
         <YourSidebar />
         <Nest direction="vertical" ratio={0.7}>
@@ -172,7 +172,7 @@ shaking:
 
 ```ts
 import { dracula } from '@cluesurf/rock/theme/dracula'
-import { cluesurfLight } from '@cluesurf/rock/theme/cluesurf/light'
+import { rockLight } from '@cluesurf/rock/theme/rock/light'
 
 <Slab theme={dracula}>
 ```
@@ -186,8 +186,8 @@ Available:
 - `@cluesurf/rock/theme/gruvbox-dark`
 - `@cluesurf/rock/theme/monokai`
 - `@cluesurf/rock/theme/tokyo-night`
-- `@cluesurf/rock/theme/cluesurf/dark`
-- `@cluesurf/rock/theme/cluesurf/light`
+- `@cluesurf/rock/theme/rock/dark`
+- `@cluesurf/rock/theme/rock/light`
 
 Define your own as a plain object:
 
