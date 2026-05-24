@@ -222,13 +222,13 @@ layer in TypeScript. That's a 2027 conversation, not today.
 
 ## Further reading
 
-- [VT100.net](https://vt100.net) — the canonical archive of DEC terminal
+- [VT100.net](https://vt100.net): the canonical archive of DEC terminal
   specs
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
-  — the de-facto modern reference
-- [Unicode UAX #11](https://www.unicode.org/reports/tr11/) — East Asian
+  : the de-facto modern reference
+- [Unicode UAX #11](https://www.unicode.org/reports/tr11/): East Asian
   width
-- [xterm.js source](https://github.com/xtermjs/xterm.js) — read the
+- [xterm.js source](https://github.com/xtermjs/xterm.js): read the
   parser if you want a tour of the swamp
-- [Ghostty docs](https://ghostty.org/docs) — clear, modern explanation
-  of the protocol surface
+- [Ghostty docs](https://ghostty.org/docs): clear, modern explanation of
+  the protocol surface
