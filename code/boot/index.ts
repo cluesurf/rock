@@ -52,6 +52,17 @@ import type { TreeNode } from '@/base/tree'
 // BEFORE app.whenReady(). Side-effect at module load.
 registerRockProtocolSchemes()
 
+// Skip cookie encryption (and thus the macOS Keychain
+// "Safe Storage" prompt that fires on every fresh build
+// hash of an unsigned binary). Rock doesn't store any
+// secrets in session cookies — it's a terminal workspace,
+// not a browser — so the encryption layer is dead weight
+// here. Removing it means dev rebuilds stop pestering for
+// the login password, and end users on signed builds get
+// a slightly faster cold start. Must be set before
+// app.whenReady().
+app.commandLine.appendSwitch('disable-features', 'CookieEncryption')
+
 /**
  * Rebuild a WorkspaceDefinition from persisted TabState[],
  * preserving the original workspace's name + per-slab env

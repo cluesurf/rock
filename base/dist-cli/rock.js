@@ -1855,9 +1855,6 @@ function isBundledElectronApp() {
 function isElectronApp() {
   return !!process.versions.electron;
 }
-function hideBin(argv) {
-  return argv.slice(getProcessArgvBinIndex() + 1);
-}
 function getProcessArgvBin() {
   return process.argv[getProcessArgvBinIndex()];
 }
@@ -5419,7 +5416,7 @@ var yargs_default = Yargs;
 
 // call/rock.ts
 var SOCKET = join2(tmpdir(), "rock.sock");
-var VERSION = "0.0.6";
+var VERSION = true ? "0.1.4" : "0.0.0-dev";
 function callRock(cmd, args) {
   return new Promise((resolveP, reject) => {
     if (!existsSync(SOCKET)) {
@@ -5614,7 +5611,7 @@ In Claude Code, run /theme and pick "Rock Dark" or "Rock Light".
   }
 }
 async function main() {
-  const argv = hideBin(process.argv);
+  const argv = process.argv.slice(2);
   if (argv.length === 0) {
     await cmdOpen(process.cwd());
     return;

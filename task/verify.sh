@@ -80,35 +80,61 @@ green "  rock --help: OK"
 # ── 3. main process boot smoke test ─────────────────────
 step "main process boot smoke test"
 
-# Run the Electron binary directly (NOT via `open`) so we
-# can capture stdio. --enable-logging routes Chromium /
-# Node errors to stderr. We let it boot for ~4 seconds,
-# then SIGTERM. If anything goes wrong during main-process
-# startup (missing module, parse error, throw before app
-# ready) it shows up in the log within the first second.
 ELECTRON_BIN="$APP/Contents/MacOS/Rock"
 [ -x "$ELECTRON_BIN" ] || fail "Electron binary missing at $ELECTRON_BIN"
+
+# If the user hasn't pre-trusted the keychain item, the
+# first boot of an unsigned build pops a macOS dialog
+# asking for the login password. Give them a heads-up
+# instead of killing the app mid-dismissal.
+if ! security find-generic-password -s "Rock Safe Storage" >/dev/null 2>&1; then
+  yellow "  NOTE: macOS may prompt for your login password (Electron Safe Storage)."
+  yellow "        Click 'Always Allow' to skip it, or run 'pnpm trust:keychain'"
+  yellow "        once to pre-grant access and never see it again."
+fi
+
+# Run the Electron binary directly (NOT via `open`) so we
+# capture stdio. --enable-logging routes Chromium / Node
+# errors to stderr. Most real boot failures fire in the
+# first ~1s; the long timeout exists so the user has time
+# to dismiss any one-off macOS prompts (Gatekeeper, key-
+# chain, Notification permission) without verify killing
+# the process mid-dialog.
+BOOT_TIMEOUT="${ROCK_BOOT_TIMEOUT:-20}"
+
+# Patterns that indicate fatal main-process failures.
+# - ERR_MODULE_NOT_FOUND / Cannot find: native dep not bundled
+# - posix_spawnp failed: native binary lives inside asar
+#   and macOS can't exec it (asarUnpack didn't fire)
+# - Uncaught Exception / UnhandledPromiseRejection: bug
+#   anywhere in main process boot path
+FATAL_PATTERNS='ERR_MODULE_NOT_FOUND|Cannot find package|Cannot find module|Uncaught Exception|UnhandledPromiseRejection|A JavaScript error occurred|TypeError: Cannot read|SyntaxError|posix_spawnp failed|failed to spawn'
 
 "$ELECTRON_BIN" --enable-logging >"$LOG" 2>&1 &
 PID=$!
 
-# Give the main process time to fail (most errors fire
-# within the first second). Sleep longer to also catch
-# slow async failures.
-sleep 4
+# Poll for a fatal error or for the timeout to expire,
+# whichever comes first. Process death is also fatal
+# (clean exit during boot means it crashed).
+elapsed=0
+while [ "$elapsed" -lt "$BOOT_TIMEOUT" ]; do
+  if ! kill -0 "$PID" 2>/dev/null; then
+    fail "main process exited unexpectedly during boot"
+  fi
+  if grep -qE "$FATAL_PATTERNS" "$LOG" 2>/dev/null; then
+    break  # let the post-loop check report it
+  fi
+  sleep 1
+  elapsed=$((elapsed + 1))
+done
 
-# Stop the app. SIGTERM first; if it doesn't respond,
-# SIGKILL on cleanup.
+# Clean shutdown.
 if kill -0 "$PID" 2>/dev/null; then
   kill -TERM "$PID" 2>/dev/null || true
   sleep 1
   kill -KILL "$PID" 2>/dev/null || true
 fi
 wait "$PID" 2>/dev/null || true
-
-# Patterns that indicate fatal main-process failures.
-# Add more as new failure modes are discovered.
-FATAL_PATTERNS='ERR_MODULE_NOT_FOUND|Cannot find package|Cannot find module|Uncaught Exception|UnhandledPromiseRejection|A JavaScript error occurred|TypeError: Cannot read|SyntaxError'
 
 if grep -qE "$FATAL_PATTERNS" "$LOG"; then
   fail "main process error during boot — see log below"

@@ -1,7 +1,7 @@
 {
   "name": "@cluesurf/rock",
   "description": "A Hackable Terminal ⊡",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "main": "./host/index.js",
@@ -78,6 +78,7 @@
     "package:linux": "pnpm --filter @cluesurf/rock-base package:linux",
     "install:theme:claude": "mkdir -p ~/.claude/themes && cp code/theme/claude/*.json ~/.claude/themes/ && echo 'installed Rock Dark + Rock Light into ~/.claude/themes/'",
     "verify": "bash task/verify.sh",
+    "trust:keychain": "bash task/trust-keychain.sh",
     "ship": "pnpm verify && bash task/ship.sh",
     "ship:unsafe": "bash task/ship.sh",
     "ship:cask-only": "ROCK_SKIP_BUILD=1 ROCK_SKIP_RELEASE=1 bash task/ship.sh",

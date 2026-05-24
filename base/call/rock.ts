@@ -28,7 +28,14 @@ import { spawn } from 'node:child_process'
 import yargs from 'yargs'
 
 const SOCKET = join(tmpdir(), 'rock.sock')
-const VERSION = '0.0.6'
+
+// __ROCK_VERSION__ is injected by esbuild's --define at
+// build time, reading base/package.json's version. The
+// `typeof` guard keeps `tsc` happy and gives a sane
+// fallback when the file is run directly under tsx etc.
+declare const __ROCK_VERSION__: string
+const VERSION =
+  typeof __ROCK_VERSION__ === 'string' ? __ROCK_VERSION__ : '0.0.0-dev'
 
 // ────────────────────────────────────────────────────────
 // IPC client

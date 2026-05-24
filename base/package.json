@@ -1,6 +1,6 @@
 {
   "name": "@cluesurf/rock-base",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "private": true,
   "description": "Rock.app — the host shell that loads a user's .rock/ config",
   "license": "GPL-3.0-or-later",
@@ -11,14 +11,13 @@
     "predev": "pnpm setup-env && pnpm build:lib",
     "prebuild": "pnpm setup-env && pnpm build:lib",
     "prestart": "pnpm setup-env && pnpm build:lib",
-    "setup-env": "pnpm fix-bins && pnpm fix-spawn-helper && pnpm fix-electron && pnpm fix-native && pnpm link-native",
+    "setup-env": "pnpm fix-bins && pnpm fix-spawn-helper && pnpm fix-electron && pnpm fix-native",
     "fix-bins": "find ../node_modules -path '*/bin/*' \\( -name '*.js' -o -name '*.cjs' -o -name '*.mjs' \\) -exec chmod +x {} + 2>/dev/null; true",
     "fix-electron": "test -d ../node_modules/electron/dist || node ../node_modules/electron/install.js",
     "fix-native": "test -f ../node_modules/node-pty/build/Release/pty.node || bash -c 'export SDKROOT=\"$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk 2>/dev/null | tail -1)\"; pnpm dlx @electron/rebuild --only node-pty'",
-    "link-native": "mkdir -p node_modules && for p in node-pty better-sqlite3; do [ -e \"node_modules/$p\" ] || ln -sf \"../../node_modules/$p\" \"node_modules/$p\"; done",
     "dev": "electron-vite dev",
     "build": "electron-vite build && pnpm build:cli",
-    "build:cli": "esbuild call/rock.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist-cli/rock.js --log-level=warning",
+    "build:cli": "esbuild call/rock.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist-cli/rock.js --log-level=warning --define:__ROCK_VERSION__=\\\"$(node -p \"require('./package.json').version\")\\\"",
     "start": "electron-vite preview",
     "package": "pnpm setup-env && pnpm build && electron-builder",
     "package:mac": "pnpm setup-env && pnpm build && electron-builder --mac",
@@ -71,13 +70,23 @@
     "files": [
       "out/**/*",
       "package.json",
-      "node_modules/node-pty/**/*",
-      "node_modules/better-sqlite3/**/*"
+      {
+        "from": "../node_modules/node-pty",
+        "to": "node_modules/node-pty",
+        "filter": ["**/*", "!node_modules/**"]
+      },
+      {
+        "from": "../node_modules/better-sqlite3",
+        "to": "node_modules/better-sqlite3",
+        "filter": ["**/*", "!node_modules/**"]
+      }
     ],
     "asar": true,
     "asarUnpack": [
-      "**/node_modules/node-pty/**",
-      "**/node_modules/better-sqlite3/**"
+      "node_modules/node-pty/**/*",
+      "node_modules/better-sqlite3/**/*",
+      "**/*.node",
+      "**/spawn-helper"
     ],
     "extraResources": [
       { "from": "bin/rock", "to": "rock" },
