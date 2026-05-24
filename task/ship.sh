@@ -261,8 +261,18 @@ if [ "${ROCK_SKIP_CASK:-0}" != "1" ]; then
   else
     git -C "$TAP_DIR" remote set-url origin "$REMOTE"
     git -C "$TAP_DIR" fetch --quiet origin
-    git -C "$TAP_DIR" checkout --quiet main 2>/dev/null \
-      || git -C "$TAP_DIR" checkout --quiet master
+    # Use the remote's recorded default branch (origin/HEAD)
+    # so this works for any naming convention — main, master,
+    # make, trunk, etc. The ClueSurf tap uses `make`, which
+    # the old main-or-master fallback chain didn't cover.
+    TAP_BRANCH="$(git -C "$TAP_DIR" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')"
+    if [ -z "$TAP_BRANCH" ]; then
+      # origin/HEAD wasn't recorded locally; ask the remote.
+      git -C "$TAP_DIR" remote set-head origin -a >/dev/null 2>&1 || true
+      TAP_BRANCH="$(git -C "$TAP_DIR" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')"
+    fi
+    TAP_BRANCH="${TAP_BRANCH:-main}"
+    git -C "$TAP_DIR" checkout --quiet "$TAP_BRANCH"
     git -C "$TAP_DIR" pull --ff-only --quiet
   fi
 
@@ -292,9 +302,7 @@ if [ "${ROCK_SKIP_CASK:-0}" != "1" ]; then
   if git -C "$TAP_DIR" diff --quiet "$CASK"; then
     echo "cask already up to date"
   else
-    git -C "$TAP_DIR" -c "user.name=rock-ship" \
-                      -c "user.email=ship@rock.local" \
-                      commit -am "rock $VERSION"
+    git -C "$TAP_DIR" commit -am "rock $VERSION"
     git -C "$TAP_DIR" push --quiet origin HEAD
   fi
 fi
