@@ -1,4 +1,6 @@
 make
+dist
+dist-cli
 node_modules
 *.log
 .DS_Store

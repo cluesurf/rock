@@ -1,6 +1,6 @@
 {
   "name": "@cluesurf/rock-base",
-  "version": "0.1.6",
+  "version": "0.1.8",
   "private": true,
   "description": "Rock.app — the host shell that loads a user's .rock/ config",
   "license": "GPL-3.0-or-later",
@@ -17,7 +17,7 @@
     "fix-native": "test -f ../node_modules/node-pty/build/Release/pty.node || bash -c 'export SDKROOT=\"$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk 2>/dev/null | tail -1)\"; pnpm dlx @electron/rebuild --only node-pty'",
     "dev": "electron-vite dev",
     "build": "electron-vite build && pnpm build:cli",
-    "build:cli": "esbuild call/rock.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist-cli/rock.js --log-level=warning --define:__ROCK_VERSION__=\\\"$(node -p \"require('./package.json').version\")\\\"",
+    "build:cli": "esbuild call/rock.ts --bundle --platform=node --format=esm --target=node22 --outfile=make/call/rock.js --log-level=warning --define:__ROCK_VERSION__=\\\"$(node -p \"require('./package.json').version\")\\\"",
     "start": "electron-vite preview",
     "package": "pnpm setup-env && pnpm build && electron-builder",
     "package:mac": "pnpm setup-env && pnpm build && electron-builder --mac",
@@ -61,6 +61,7 @@
   "build": {
     "appId": "surf.clue.rock",
     "productName": "Rock",
+    "copyright": "Copyright © 2026 ClueSurf",
     "electronVersion": "42.2.0",
     "nodeGypRebuild": false,
     "directories": {
@@ -101,8 +102,8 @@
       "**/spawn-helper"
     ],
     "extraResources": [
-      { "from": "bin/rock", "to": "rock" },
-      { "from": "dist-cli/rock.js", "to": "rock.js" },
+      { "from": "call/rock", "to": "rock" },
+      { "from": "make/call/rock.js", "to": "rock.js" },
       { "from": "../code/theme/claude", "to": "themes/claude" }
     ],
     "npmRebuild": false,
