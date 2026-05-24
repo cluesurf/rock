@@ -217,6 +217,8 @@ useTerminalStore, useTerminalApi, useSlabActivity, useKeys
 ### From `@cluesurf/rock/theme/*`
 
 ```
+rock/dark
+rock/light
 dracula
 one-dark
 solarized-dark
@@ -225,8 +227,6 @@ nord
 gruvbox-dark
 monokai
 tokyo-night
-rock/dark
-rock/light
 ```
 
 Each theme is a plain object. Define a custom one:
