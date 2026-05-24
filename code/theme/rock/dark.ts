@@ -15,11 +15,11 @@ export const rockDark: RockTheme = {
   name: 'Rock Dark',
   font: '"Noto Sans Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
   background: '#09090b', // zinc-950
-  // Foreground sits between zinc-400 (#a1a1aa) and
-  // zinc-500 (#71717a), nudged closer to zinc-400 so
-  // body text reads as comfortably bright without the
-  // "too white" effect at full zinc-400.
-  foreground: '#9ca0a8', // ~zinc-440
+  // Foreground — sits between zinc-400 (#a1a1aa) and
+  // zinc-300 (#d4d4d8), roughly the halfway point.
+  // zinc-400 read "still too gray", zinc-300 read
+  // "too white"; this is the comfortable middle.
+  foreground: '#b3b6bc', // ~zinc-350
   cursor: '#a78bfa', // violet-400 — accent stays bright; it's a focus signal
   cursorAccent: '#09090b',
   selectionBackground: '#3f3f46', // zinc-700
@@ -35,7 +35,7 @@ export const rockDark: RockTheme = {
   blue: '#2563eb', // blue-600
   magenta: '#7c3aed', // violet-600
   cyan: '#0891b2', // cyan-600
-  white: '#9ca0a8', // matches foreground
+  white: '#b3b6bc', // matches foreground
 
   brightBlack: '#52525b', // zinc-600 — readable muted gray
   brightRed: '#f43f5e', // rose-500

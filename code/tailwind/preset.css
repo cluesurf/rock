@@ -92,7 +92,7 @@
   }
   [data-rock-branch-header] {
     @apply flex items-center gap-1 w-full py-1
-           text-[15px] uppercase tracking-wider
+           text-[15px]
            cursor-pointer select-none border-0 text-left;
     /* Group label text. zinc-400 — sits between the
        leaf labels and the zinc-500 muted body. Reads
