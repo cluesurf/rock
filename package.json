@@ -1,7 +1,7 @@
 {
   "name": "@cluesurf/rock",
   "description": "A Hackable Terminal ⊡",
-  "version": "0.1.4",
+  "version": "0.1.8",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "main": "./host/index.js",
@@ -61,8 +61,8 @@
   "scripts": {
     "make": "rm -rf host && tsc && tsc-alias --resolve-full-paths",
     "make:icons": "bash task/icons.sh",
-    "clean": "rm -rf node_modules base/node_modules host base/out base/dist",
-    "clean:lock": "rm -rf node_modules base/node_modules host base/out base/dist pnpm-lock.yaml",
+    "clean": "rm -rf node_modules base/node_modules host base/make base/dist",
+    "clean:lock": "rm -rf node_modules base/node_modules host base/make base/dist pnpm-lock.yaml",
     "reset": "pnpm clean:lock && pnpm install",
     "scan": "concurrently --kill-others \"tsc -w\" \"tsc-alias --resolve-full-paths -w\"",
     "test": "vitest run --passWithNoTests",
@@ -78,6 +78,7 @@
     "package:linux": "pnpm --filter @cluesurf/rock-base package:linux",
     "install:theme:claude": "mkdir -p ~/.claude/themes && cp code/theme/claude/*.json ~/.claude/themes/ && echo 'installed Rock Dark + Rock Light into ~/.claude/themes/'",
     "verify": "bash task/verify.sh",
+    "open": "open base/dist/mac-arm64/Rock.app",
     "trust:keychain": "bash task/trust-keychain.sh",
     "ship": "pnpm verify && bash task/ship.sh",
     "ship:unsafe": "bash task/ship.sh",

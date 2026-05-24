@@ -6,8 +6,8 @@ import { resolve } from 'node:path'
 // Native + Electron modules that MUST resolve from
 // node_modules at runtime. node-pty's internal loader uses
 // relative paths (`'..'` / `'.'`) to find pty.node; if
-// node-pty itself is bundled into out/main/index.js those
-// paths resolve to base/out/ instead of node_modules/node-pty/
+// node-pty itself is bundled into make/main/index.js those
+// paths resolve to base/make/ instead of node_modules/node-pty/
 // and pty.node fails to load. better-sqlite3 has the same
 // shape. esbuild is a native binary too. electron is
 // provided by the runtime.
@@ -26,7 +26,7 @@ export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
     build: {
-      outDir: resolve(__dirname, 'out/main'),
+      outDir: resolve(__dirname, 'make/main'),
       emptyOutDir: true,
       rollupOptions: {
         input: resolve(__dirname, 'boot/index.ts'),
@@ -41,7 +41,7 @@ export default defineConfig({
   preload: {
     plugins: [externalizeDepsPlugin()],
     build: {
-      outDir: resolve(__dirname, 'out/preload'),
+      outDir: resolve(__dirname, 'make/preload'),
       emptyOutDir: true,
       rollupOptions: {
         input: resolve(__dirname, 'boot/preload.ts'),
@@ -57,7 +57,7 @@ export default defineConfig({
     root: resolve(__dirname, 'code'),
     plugins: [react(), tailwindcss()],
     build: {
-      outDir: resolve(__dirname, 'out/renderer'),
+      outDir: resolve(__dirname, 'make/renderer'),
       emptyOutDir: true,
       rollupOptions: {
         input: resolve(__dirname, 'code/index.html'),

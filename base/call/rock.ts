@@ -105,7 +105,33 @@ async function cmdOpen(targetPath: string): Promise<void> {
     throw new Error(`not a directory: ${targetPath}`)
   }
   const abs = isAbsolute(targetPath) ? targetPath : resolve(targetPath)
-  const proc = spawn('open', ['-a', 'Rock', '--args', `--cwd=${abs}`], {
+
+  // Probe whether a GUI Rock is actually running. The
+  // bash launcher EXECs Rock.app's bundled Electron in
+  // Node mode (ELECTRON_RUN_AS_NODE=1) to run this very
+  // script, which macOS LaunchServices can mis-detect as
+  // "Rock.app is running" even though there's no GUI.
+  // That would make a plain `open -a Rock --args …` a
+  // silent no-op (focus the non-existent GUI, drop the
+  // --args). The IPC socket only exists when the actual
+  // GUI process is up, so it's a reliable signal.
+  const guiRunning = existsSync(SOCKET)
+
+  if (guiRunning) {
+    // GUI is up: bring it to the foreground. Plain
+    // `open -a Rock` works here because LaunchServices
+    // is correct that an instance is running.
+    spawn('open', ['-a', 'Rock'], {
+      stdio: 'ignore',
+      detached: true,
+    }).unref()
+    return
+  }
+
+  // No GUI: force a new instance with -n so Launch-
+  // Services can't decide that Node-mode Rock counts as
+  // "already running" and skip the GUI launch.
+  const proc = spawn('open', ['-n', '-a', 'Rock', '--args', `--cwd=${abs}`], {
     stdio: 'inherit',
     detached: true,
   })

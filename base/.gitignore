@@ -1,4 +1,4 @@
-out
+make
 node_modules
 *.log
 .DS_Store

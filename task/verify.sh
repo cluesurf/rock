@@ -77,6 +77,21 @@ if grep -qE "Unknown argument|Unknown command" "$LOG"; then
 fi
 green "  rock --help: OK"
 
+# ── 2.5. static bundled-deps check ──────────────────────
+# Catches "added a peer dep, forgot to copy it into the
+# .app" bugs FAST, without booting. The boot smoke test
+# below can miss this class of failure when Electron pops
+# a native error dialog instead of writing to stderr —
+# see https://github.com/electron/electron/issues/... .
+# The static check parses make/main/*.js for bare imports
+# and verifies each resolves to a Node built-in, a package
+# inside the asar, or a package in app.asar.unpacked.
+step "bundled-deps static check"
+if ! node "$ROOT/task/verify-bundled-deps.mjs" "$APP" >"$LOG" 2>&1; then
+  fail "main-process imports missing from packaged .app — see log"
+fi
+green "  $(tail -1 "$LOG")"
+
 # ── 3. main process boot smoke test ─────────────────────
 step "main process boot smoke test"
 
@@ -110,8 +125,16 @@ BOOT_TIMEOUT="${ROCK_BOOT_TIMEOUT:-20}"
 #   anywhere in main process boot path
 FATAL_PATTERNS='ERR_MODULE_NOT_FOUND|Cannot find package|Cannot find module|Uncaught Exception|UnhandledPromiseRejection|A JavaScript error occurred|TypeError: Cannot read|SyntaxError|posix_spawnp failed|failed to spawn'
 
-"$ELECTRON_BIN" --enable-logging >"$LOG" 2>&1 &
+# ELECTRON_ENABLE_LOGGING=1 is more reliable than the
+# --enable-logging flag for routing main-process console
+# output to stderr (the flag mainly affects Chromium).
+# ELECTRON_NO_ATTACH_CONSOLE=0 keeps stderr unbuffered.
+"$ELECTRON_BIN" --enable-logging --no-sandbox \
+  >"$LOG" 2>&1 \
+  &
 PID=$!
+export ELECTRON_ENABLE_LOGGING=1
+export ELECTRON_NO_ATTACH_CONSOLE=0
 
 # Poll for a fatal error or for the timeout to expire,
 # whichever comes first. Process death is also fatal
@@ -156,7 +179,7 @@ echo
 green "ALL CHECKS PASSED."
 echo
 echo "Next steps:"
-echo "  open $APP                       # eyeball it"
+echo "  pnpm open                       # launch the just-built .app"
 echo "  pnpm ship                       # publish to GitHub + tap"
 echo
 echo "Log kept at: $LOG"

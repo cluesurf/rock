@@ -386,9 +386,11 @@ export async function boot(input: BootInput): Promise<AppHandle> {
   function locateAsset(filename: string): string {
     // Resolve relative to the consumer's app path (the
     // directory containing the package.json that was
-    // launched). electron-vite places main / preload / renderer
-    // under <appPath>/out/ by default.
-    return path.join(app.getAppPath(), 'out', filename)
+    // launched). electron-vite outputs main / preload /
+    // renderer under <appPath>/make/ (we override its
+    // default `out/` to keep build outputs consistent
+    // with the rest of the workspace).
+    return path.join(app.getAppPath(), 'make', filename)
   }
 
   let primarySpawnDone = false

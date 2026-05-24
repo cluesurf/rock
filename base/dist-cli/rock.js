@@ -5416,7 +5416,7 @@ var yargs_default = Yargs;
 
 // call/rock.ts
 var SOCKET = join2(tmpdir(), "rock.sock");
-var VERSION = true ? "0.1.4" : "0.0.0-dev";
+var VERSION = true ? "0.1.6" : "0.0.0-dev";
 function callRock(cmd, args) {
   return new Promise((resolveP, reject) => {
     if (!existsSync(SOCKET)) {

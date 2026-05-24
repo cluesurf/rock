@@ -1,11 +1,11 @@
 {
   "name": "@cluesurf/rock-base",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "private": true,
   "description": "Rock.app — the host shell that loads a user's .rock/ config",
   "license": "GPL-3.0-or-later",
   "type": "module",
-  "main": "./out/main/index.js",
+  "main": "./make/main/index.js",
   "scripts": {
     "build:lib": "cd .. && pnpm make",
     "predev": "pnpm setup-env && pnpm build:lib",
@@ -68,7 +68,7 @@
       "buildResources": "code/assets"
     },
     "files": [
-      "out/**/*",
+      "make/**/*",
       "package.json",
       {
         "from": "../node_modules/node-pty",
@@ -79,12 +79,24 @@
         "from": "../node_modules/better-sqlite3",
         "to": "node_modules/better-sqlite3",
         "filter": ["**/*", "!node_modules/**"]
+      },
+      {
+        "from": "../node_modules/esbuild",
+        "to": "node_modules/esbuild",
+        "filter": ["**/*", "!node_modules/**"]
+      },
+      {
+        "from": "../node_modules/@esbuild",
+        "to": "node_modules/@esbuild",
+        "filter": ["**/*"]
       }
     ],
     "asar": true,
     "asarUnpack": [
       "node_modules/node-pty/**/*",
       "node_modules/better-sqlite3/**/*",
+      "node_modules/esbuild/**/*",
+      "node_modules/@esbuild/**/*",
       "**/*.node",
       "**/spawn-helper"
     ],
