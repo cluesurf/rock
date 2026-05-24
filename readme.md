@@ -25,14 +25,13 @@ designing your own terminal UI.
 
 The app launches with a sensible default workspace. Drop a
 `.rock/code/index.tsx` file at the root of any project and Rock
-JIT-compiles it on launch. From that file the entire app surface
-can be replaced. The sidebar tree, status bar, command palette,
-keyboard map, and theme are all React components you import and
-recompose.
+JIT-compiles it on launch. From that file the entire app surface can be
+replaced. The sidebar tree, status bar, command palette, keyboard map,
+and theme are all React components you import and recompose.
 
-Nothing about the chrome is fixed. Every part of the interface
-ships as a primitive on `@cluesurf/rock/face` and is meant to be
-swapped, restyled, or thrown out.
+Nothing about the chrome is fixed. Every part of the interface ships as
+a primitive on `@cluesurf/rock/face` and is meant to be swapped,
+restyled, or thrown out.
 
 ## Install
 
@@ -43,20 +42,19 @@ brew tap cluesurf/tool
 brew install --cask cluesurf/tool/rock
 ```
 
-The cask installs **Rock.app** to `/Applications` and symlinks
-the **`rock` CLI** to `/usr/local/bin/rock`.
+The cask installs **Rock.app** to `/Applications` and symlinks the
+**`rock` CLI** to `/usr/local/bin/rock`.
 
 Library only (for projects that vendor Rock from npm):
 
 ```bash
 pnpm add @cluesurf/rock
-pnpm add electron node-pty better-sqlite3 esbuild \
-  react react-dom
+pnpm add electron node-pty better-sqlite3 esbuild react react-dom
 ```
 
 The npm package and the desktop app share the same source. Peer
-dependencies are optional and only need to be installed for the
-runtime context the consumer is targeting.
+dependencies are optional and only need to be installed for the runtime
+context the consumer is targeting.
 
 ## Quickstart
 
@@ -87,22 +85,21 @@ export default {
     name: 'some-project',
     slabs: {
       shell: {},
-      web:  { cwd: './site', command: 'pnpm dev' },
-      api:  { cwd: './base', command: 'pnpm dev' },
+      web: { cwd: './site', command: 'pnpm dev' },
+      api: { cwd: './base', command: 'pnpm dev' },
       logs: { command: 'tail -f logs/app.log' },
     },
   }),
 }
 ```
 
-Relaunching at the same directory spawns those tabs and restores
-sidebar layout, window size, and last-known cwds.
+Relaunching at the same directory spawns those tabs and restores sidebar
+layout, window size, and last-known cwds.
 
 ## Build your own UI
 
-The `index.tsx` default export accepts a custom `Layout`,
-`Sidebar`, or both. Replace one slot and inherit the rest from
-Rock's default shell.
+The `index.tsx` default export accepts a custom `Layout`, `Sidebar`, or
+both. Replace one slot and inherit the rest from Rock's default shell.
 
 ```tsx
 import { workspace } from '@cluesurf/rock'
@@ -148,14 +145,14 @@ export default {
 }
 ```
 
-Every primitive is independent. A workspace can replace one of
-them, all of them, or none. Rock's default UI is itself written
-in these same components.
+Every primitive is independent. A workspace can replace one of them, all
+of them, or none. Rock's default UI is itself written in these same
+components.
 
 ## Architecture
 
-Four layers, separated so the wrong runtime never imports the
-wrong code.
+Four layers, separated so the wrong runtime never imports the wrong
+code.
 
 | Layer                            | Module                     | Runtime  |
 | -------------------------------- | -------------------------- | -------- |
@@ -164,39 +161,38 @@ wrong code.
 | React components + Zustand store | `@cluesurf/rock/face/*`    | browser  |
 | Electron IPC bridge helpers      | `@cluesurf/rock/desktop/*` | Electron |
 
-| Concept                | Where                                   |
-| ---------------------- | --------------------------------------- |
-| Slab lifecycle (PTY)   | `code/node/terminal-manager.ts`         |
-| IPC protocol           | `code/base/protocol.ts`                 |
-| Workspace compile      | `code/base/compile-workspace.ts`        |
-| Per-project state      | `code/node/state-store.ts`              |
-| `.rock/` loader        | `code/node/rock-folder.ts`              |
-| User bundle JIT        | `code/node/layout-bundle.ts`            |
-| CLI socket server      | `code/node/ipc-server.ts`               |
-| Layout primitives      | `code/face/{nest,slab,dock}.tsx`        |
-| Sidebar tree           | `code/face/tree-view.tsx`               |
-| Status bar             | `code/face/bar.tsx`                     |
-| Command palette        | `code/face/palette.tsx`                 |
-| Modal sheets / toasts  | `code/face/{sheet,toast}.tsx`           |
-| Hotkey map             | `code/face/keys.tsx`                    |
-| Preload bridge         | `code/desktop/preload-api.ts`           |
-| Main handler           | `code/desktop/main-handler.ts`          |
-| Custom URL protocol    | `code/desktop/rock-protocol.ts`         |
+| Concept               | Where                            |
+| --------------------- | -------------------------------- |
+| Slab lifecycle (PTY)  | `code/node/terminal-manager.ts`  |
+| IPC protocol          | `code/base/protocol.ts`          |
+| Workspace compile     | `code/base/compile-workspace.ts` |
+| Per-project state     | `code/node/state-store.ts`       |
+| `.rock/` loader       | `code/node/rock-folder.ts`       |
+| User bundle JIT       | `code/node/layout-bundle.ts`     |
+| CLI socket server     | `code/node/ipc-server.ts`        |
+| Layout primitives     | `code/face/{nest,slab,dock}.tsx` |
+| Sidebar tree          | `code/face/tree-view.tsx`        |
+| Status bar            | `code/face/bar.tsx`              |
+| Command palette       | `code/face/palette.tsx`          |
+| Modal sheets / toasts | `code/face/{sheet,toast}.tsx`    |
+| Hotkey map            | `code/face/keys.tsx`             |
+| Preload bridge        | `code/desktop/preload-api.ts`    |
+| Main handler          | `code/desktop/main-handler.ts`   |
+| Custom URL protocol   | `code/desktop/rock-protocol.ts`  |
 
-Slab records carry stable IDs. Symbolic slab names from the
-user's workspace map to those IDs at compile time. JSX
-components reference the symbolic name (`<Dock name="web" />`)
-and the store resolves the lookup.
+Slab records carry stable IDs. Symbolic slab names from the user's
+workspace map to those IDs at compile time. JSX components reference the
+symbolic name (`<Dock name="web" />`) and the store resolves the lookup.
 
-The React layer never imports node-pty. node-pty never imports
-React. Electron IPC is the membrane between them.
+The React layer never imports node-pty. node-pty never imports React.
+Electron IPC is the membrane between them.
 
 ## Public surface
 
 ### From `@cluesurf/rock`
 
 ```ts
-workspace, commands           // identity helpers for .rock/code/index.tsx
+workspace, commands // identity helpers for .rock/code/index.tsx
 ```
 
 ### From `@cluesurf/rock/face`
@@ -272,13 +268,13 @@ Useful in deploy scripts, editor commands, and CI hooks.
 
 Two files per project, field-merged on load.
 
-| File              | Committed | Purpose                                |
-| ----------------- | --------- | -------------------------------------- |
-| `base.json`       | yes       | Shared defaults (sidebar tree shape)   |
-| `base.local.json` | no        | Per-machine (cwds, window pos, sizes)  |
+| File              | Committed | Purpose                               |
+| ----------------- | --------- | ------------------------------------- |
+| `base.json`       | yes       | Shared defaults (sidebar tree shape)  |
+| `base.local.json` | no        | Per-machine (cwds, window pos, sizes) |
 
-Live shell memory is not persisted. On restore, slabs respawn
-their original commands.
+Live shell memory is not persisted. On restore, slabs respawn their
+original commands.
 
 ## Scripts
 
