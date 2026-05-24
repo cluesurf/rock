@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate platform app icons from view/mac.svg or view/mac.png.
+# Generate platform app icons from view/rock.svg or view/rock.png.
 #
 # Outputs to base/code/assets/:
 #   icon.icns  — macOS (10-size container)
@@ -40,14 +40,11 @@ mkdir -p "$OUT"
 SRC_SVG=""
 SRC_PNG=""
 
-if [ -f "$VIEW/mac.svg" ]; then
-  SRC_SVG="$VIEW/mac.svg"
+if [ -f "$VIEW/rock.svg" ]; then
+  SRC_SVG="$VIEW/rock.svg"
   echo "source: $SRC_SVG (vector)"
-elif [ -f "$VIEW/mac.png" ]; then
-  SRC_PNG="$VIEW/mac.png"
-  echo "source: $SRC_PNG (raster)"
 else
-  echo "ERROR: no source icon at $VIEW/mac.svg or $VIEW/mac.png" >&2
+  echo "ERROR: no source icon at $VIEW/rock.svg" >&2
   exit 1
 fi
 
