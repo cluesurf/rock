@@ -1,17 +1,45 @@
-# ClueSurf Tool
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
+
+<p align='center'>
+  <img src='https://github.com/cluesurf.png?size=256' height='256'/>
+</p>
+
+<h3 align='center'>@cluesurf/tool</h3>
+<p align='center'>
+  A Hackable Workshop ⊡
+</p>
+
+<br/>
+<br/>
+<br/>
+
+## Overview
 
 Monorepo for the four ClueSurf desktop apps:
 
-| Glyph | App | Domain | Folder | Package | Status |
-|---|---|---|---|---|---|
-| **▣** | Term | terminal | `tool/term/` | `@cluesurf/term` | active |
-| **▥** | Base | databases / APIs | `tool/base/` | `@cluesurf/base` | stub |
-| **▦** | Mesh | infrastructure | `tool/mesh/` | `@cluesurf/mesh` | stub |
-| **⊞** | View | logs / requests / observability | `tool/view/` | `@cluesurf/view` | stub |
+| icon  | app  | domain                          | folder       | package          | status |
+| ----- | ---- | ------------------------------- | ------------ | ---------------- | ------ |
+| **▣** | Term | terminal                        | `tool/term/` | `@cluesurf/term` | active |
+| **▥** | Base | databases / APIs                | `tool/base/` | `@cluesurf/base` | stub   |
+| **▦** | Mesh | infrastructure                  | `tool/mesh/` | `@cluesurf/mesh` | stub   |
+| **⊞** | View | logs / requests / observability | `tool/view/` | `@cluesurf/view` | stub   |
 
-All four share a common platform (Electron + React + xterm.js + Tailwind). Per-app source lives at `tool/<name>/code/`; per-app Electron shell at `tool/<name>/dock/`. Shared platform packages will eventually live at the repo-root `code/` folder (Phase 2).
+All four share a common platform (Electron + React + xterm.js +
+Tailwind). Per-app source lives at `tool/<name>/code/`; per-app Electron
+shell at `tool/<name>/dock/`. Shared platform packages will eventually
+live at the repo-root `code/` folder (Phase 2).
 
-This repo was previously `cluesurf/rock` — the Term app's old code now lives at `tool/term/`. See `../note/library/tool/migration-plan.md` for the migration trail and `../note/library/workbench-architecture.md` for the long-term architecture.
+This repo was previously `cluesurf/rock` — the Term app's old code now
+lives at `tool/term/`. See
+[`../note/library/tool/migration-plan.md`](../../note/library/tool/migration-plan.md)
+for the migration trail and
+[`../note/library/workbench-architecture.md`](../../note/library/workbench-architecture.md)
+for the long-term architecture.
 
 ## Develop Term
 
@@ -69,6 +97,27 @@ deck/tool/                              # @cluesurf/tool monorepo root (this fol
 
 ## Naming conventions
 
-- **Each app's runtime library** is `@cluesurf/<name>` and lives at `tool/<name>/code/`. Published to npm.
-- **Each app's Electron shell** is `@cluesurf/<name>-dock` and lives at `tool/<name>/dock/`. Private — packaged via electron-builder into a separately-branded `.app`.
-- **User project config** lives at `<project>/.tool/<name>/` — so a project that uses both Term and View would have `.tool/term/` and `.tool/view/` side by side. The umbrella `.tool/` dir replaces the old `.rock/`.
+- **Each app's runtime library** is `@cluesurf/<name>` and lives at
+  `tool/<name>/code/`. Published to npm.
+- **Each app's Electron shell** is `@cluesurf/<name>-dock` and lives at
+  `tool/<name>/dock/`. Private — packaged via electron-builder into a
+  separately-branded `.app`.
+- **User project config** lives at `<project>/.tool/<name>/` — so a
+  project that uses both Term and View would have `.tool/term/` and
+  `.tool/view/` side by side. The umbrella `.tool/` dir replaces the old
+  `.rock/`.
+
+## License
+
+[GPL-3.0-or-later](./LICENSE).
+
+## ClueSurf
+
+Made by [ClueSurf](https://clue.surf), meditating on the universe ¤.
+Follow the work on [YouTube](https://youtube.com/@cluesurf),
+[X](https://x.com/cluesurf),
+[Instagram](https://instagram.com/cluesurf),
+[Substack](https://cluesurf.substack.com),
+[Facebook](https://facebook.com/cluesurf), and
+[LinkedIn](https://linkedin.com/company/cluesurf), and browse more of
+our open-source work on [GitHub](https://github.com/cluesurf).
