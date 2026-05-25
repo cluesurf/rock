@@ -11,7 +11,7 @@
 
 <h3 align='center'>@cluesurf/tool</h3>
 <p align='center'>
-  A Hackable Workshop ⊡
+  A Hackable Workshop 𐌎
 </p>
 
 <br/>
