@@ -1,0 +1,47 @@
+#!/bin/bash
+# term — companion CLI for Term.app.
+#
+# Thin bash launcher. Execs Term.app's bundled Electron
+# in Node mode (ELECTRON_RUN_AS_NODE=1) so users don't
+# need Node installed on their machine. This is the same
+# pattern VS Code's `code` CLI uses.
+#
+# Installed by the Homebrew cask (Casks/term.rb) which
+# symlinks this script to /usr/local/bin/term. The real
+# logic lives in term.js (compiled from dock/call/term.ts)
+# next to this file inside Contents/Resources/.
+
+set -eu
+
+# Resolve the .app's MacOS dir from THIS script's location.
+# Inside the bundle: Contents/Resources/term + Contents/MacOS/Term.
+# Brew symlinks /usr/local/bin/term → this script, so $0
+# is the symlink path — resolve it.
+SELF="$0"
+# Follow symlinks (macOS bash has no `readlink -f`).
+while [ -L "$SELF" ]; do
+  target="$(readlink "$SELF")"
+  case "$target" in
+    /*) SELF="$target" ;;
+    *)  SELF="$(dirname "$SELF")/$target" ;;
+  esac
+done
+RESOURCES_DIR="$(cd "$(dirname "$SELF")" && pwd)"
+APP_CONTENTS="$(cd "$RESOURCES_DIR/.." && pwd)"
+ELECTRON_BIN="$APP_CONTENTS/MacOS/Term"
+CLI_JS="$RESOURCES_DIR/term.js"
+
+if [ ! -x "$ELECTRON_BIN" ]; then
+  echo "term: bundled Electron not found at $ELECTRON_BIN" >&2
+  echo "      (Term.app may not be installed in /Applications)" >&2
+  exit 1
+fi
+if [ ! -f "$CLI_JS" ]; then
+  echo "term: bundled CLI not found at $CLI_JS" >&2
+  exit 1
+fi
+
+# ELECTRON_RUN_AS_NODE turns Electron into a plain Node
+# interpreter (skips Chromium, skips the GUI). The CLI then
+# runs as a normal Node process.
+exec env ELECTRON_RUN_AS_NODE=1 "$ELECTRON_BIN" "$CLI_JS" "$@"

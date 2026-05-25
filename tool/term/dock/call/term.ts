@@ -1,0 +1,472 @@
+#!/usr/bin/env node
+/**
+ * term — companion CLI for Term.app.
+ *
+ * Bundled into Term.app's Resources/ and invoked via the
+ * bash launcher (Term.app/Contents/Resources/term) which
+ * sets ELECTRON_RUN_AS_NODE=1 and execs the bundled
+ * Electron in Node mode. Users get it on PATH via the
+ * Homebrew cask's `binary` directive.
+ *
+ * Commands that need a running Term.app (list / send /
+ * focus / spawn / kill / doctor) talk to it over a
+ * Unix-domain socket at $TMPDIR/term.sock. The server
+ * lives in code/node/ipc-server.ts.
+ */
+
+import { createConnection } from 'node:net'
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir, hostname, homedir } from 'node:os'
+import { dirname, join, resolve, isAbsolute } from 'node:path'
+import { spawn } from 'node:child_process'
+import yargs from 'yargs'
+
+const SOCKET = join(tmpdir(), 'term.sock')
+
+// __TERM_VERSION__ is injected by esbuild's --define at
+// build time, reading base/package.json's version. The
+// `typeof` guard keeps `tsc` happy and gives a sane
+// fallback when the file is run directly under tsx etc.
+declare const __TERM_VERSION__: string
+const VERSION =
+  typeof __TERM_VERSION__ === 'string' ? __TERM_VERSION__ : '0.0.0-dev'
+
+// ────────────────────────────────────────────────────────
+// IPC client
+// ────────────────────────────────────────────────────────
+
+type Response =
+  | { ok: true; data?: unknown }
+  | { ok: false; error: string }
+
+function callTerm(cmd: string, args?: unknown): Promise<Response> {
+  return new Promise((resolveP, reject) => {
+    if (!existsSync(SOCKET)) {
+      reject(
+        new Error(
+          `Term.app isn't running (no socket at ${SOCKET}). Run \`term\` first.`,
+        ),
+      )
+      return
+    }
+    const conn = createConnection(SOCKET)
+    let buf = ''
+    let settled = false
+    conn.setTimeout(5000)
+    conn.on('connect', () => {
+      conn.write(JSON.stringify({ cmd, args }) + '\n')
+    })
+    conn.on('data', chunk => {
+      buf += chunk.toString('utf8')
+      const idx = buf.indexOf('\n')
+      if (idx < 0) return
+      try {
+        const res = JSON.parse(buf.slice(0, idx).trim()) as Response
+        settled = true
+        conn.end()
+        resolveP(res)
+      } catch (err) {
+        if (!settled) reject(err)
+      }
+    })
+    conn.on('timeout', () => {
+      if (!settled) {
+        conn.destroy()
+        reject(new Error('Term IPC timed out after 5s'))
+      }
+    })
+    conn.on('error', err => {
+      if (!settled) reject(err)
+    })
+  })
+}
+
+async function callOrDie(cmd: string, args?: unknown): Promise<unknown> {
+  const res = await callTerm(cmd, args)
+  if (!res.ok) {
+    process.stderr.write(`term: ${res.error}\n`)
+    process.exit(1)
+  }
+  return res.data
+}
+
+// ────────────────────────────────────────────────────────
+// Commands
+// ────────────────────────────────────────────────────────
+
+/**
+ * Probe whether a GUI Term is actually accepting IPC.
+ *
+ * Just checking `existsSync(SOCKET)` is not enough — a
+ * crashed previous run can leave the socket file behind
+ * with no listener. We actually try to connect with a
+ * short timeout; only a successful connect counts as
+ * "the GUI is up."
+ */
+function isGuiRunning(): Promise<boolean> {
+  if (!existsSync(SOCKET)) return Promise.resolve(false)
+  return new Promise(resolveP => {
+    const conn = createConnection(SOCKET)
+    let done = false
+    const finish = (ok: boolean) => {
+      if (done) return
+      done = true
+      conn.destroy()
+      resolveP(ok)
+    }
+    conn.setTimeout(500)
+    conn.on('connect', () => finish(true))
+    conn.on('error', () => finish(false))
+    conn.on('timeout', () => finish(false))
+  })
+}
+
+async function cmdOpen(targetPath: string): Promise<void> {
+  if (!existsSync(targetPath)) {
+    throw new Error(`not a directory: ${targetPath}`)
+  }
+  const abs = isAbsolute(targetPath) ? targetPath : resolve(targetPath)
+
+  // The bash launcher EXECs Term.app's bundled Electron
+  // in Node mode (ELECTRON_RUN_AS_NODE=1) to run this
+  // very script, which macOS LaunchServices can mis-
+  // detect as "Term.app is running" even though there's
+  // no GUI. That would make a plain `open -a Term` a
+  // silent no-op (it focuses the phantom instance, drops
+  // the --args). So we probe IPC directly to learn
+  // whether a real GUI is up.
+  const guiRunning = await isGuiRunning()
+
+  if (guiRunning) {
+    // GUI is up: bring it to the foreground. Plain
+    // `open -a Term` works here because LaunchServices
+    // is correct that an instance is running.
+    spawn('open', ['-a', 'Term'], {
+      stdio: 'ignore',
+      detached: true,
+    }).unref()
+    return
+  }
+
+  // No GUI. Launch one DIRECTLY by re-execing Term.app's
+  // bundled Electron without ELECTRON_RUN_AS_NODE. We
+  // can't reliably go through `open -n -a Term` here
+  // because LaunchServices sometimes treats the Node-mode
+  // child (this very process) as Term-is-running and the
+  // request is silently dropped even with -n.
+  //
+  // process.execPath is the bundled Electron binary
+  // (Contents/MacOS/Term) since the bash launcher EXECs
+  // it as ELECTRON_RUN_AS_NODE=1. Clearing that env var
+  // tells the spawned copy to start as a normal GUI app.
+  const env = { ...process.env }
+  delete env.ELECTRON_RUN_AS_NODE
+  const child = spawn(process.execPath, [`--cwd=${abs}`], {
+    stdio: 'ignore',
+    detached: true,
+    env,
+  })
+  child.on('error', err => {
+    throw new Error(`failed to launch Term.app: ${err.message}`)
+  })
+  child.unref()
+}
+
+function cmdBind(): void {
+  if (existsSync('.tool')) {
+    throw new Error(`.tool/term/ already exists in ${process.cwd()}`)
+  }
+  mkdirSync('.tool/term/code', { recursive: true })
+  writeFileSync(
+    '.tool/term/code/index.tsx',
+    `\
+// .tool/term/code/index.tsx — your Term workspace.
+// Whatever you default-export becomes your Term app.
+
+import { workspace } from '@cluesurf/term'
+
+export default {
+  workspace: workspace({
+    name: 'my-project',
+    slabs: {
+      shell: {},
+      // dev:  { command: 'pnpm dev' },
+      // logs: { command: 'tail -f logs/app.log' },
+    },
+  }),
+}
+`,
+    'utf-8',
+  )
+  writeFileSync(
+    '.tool/term/.gitignore',
+    `# Term stores per-machine state here. Don't commit it.\nbase.local.json\n.cache/\n`,
+    'utf-8',
+  )
+  process.stdout.write(`term: scaffolded .tool/term/ in ${process.cwd()}\n`)
+  process.stdout.write(`  edit .tool/term/code/index.tsx to customize\n`)
+  process.stdout.write(`  run \`term\` here to launch Term.app\n`)
+}
+
+async function cmdList(): Promise<void> {
+  const slabs = (await callOrDie('list-slabs')) as Array<{
+    name: string
+    status: string
+    cwd?: string
+  }>
+  if (slabs.length === 0) {
+    process.stdout.write(`(no slabs)\n`)
+    return
+  }
+  const wName = Math.max(4, ...slabs.map(s => s.name.length))
+  const wStatus = Math.max(6, ...slabs.map(s => s.status.length))
+  const pad = (s: string, w: number) => s + ' '.repeat(Math.max(0, w - s.length))
+  process.stdout.write(`${pad('NAME', wName)}  ${pad('STATUS', wStatus)}  CWD\n`)
+  for (const slab of slabs) {
+    process.stdout.write(`${pad(slab.name, wName)}  ${pad(slab.status, wStatus)}  ${slab.cwd ?? ''}\n`)
+  }
+}
+
+async function cmdSend(slab: string, text: string): Promise<void> {
+  await callOrDie('send', { slab, text })
+}
+
+async function cmdFocus(slab: string): Promise<void> {
+  await callOrDie('focus', { slab })
+}
+
+async function cmdSpawn(opts: { name?: string; cwd?: string }): Promise<void> {
+  const res = (await callOrDie('spawn', opts)) as { name: string }
+  process.stdout.write(`spawned: ${res.name}\n`)
+}
+
+async function cmdKill(slab: string): Promise<void> {
+  await callOrDie('kill', { slab })
+}
+
+async function cmdDoctor(): Promise<void> {
+  const sockExists = existsSync(SOCKET)
+  process.stdout.write(`${sockExists ? '✓' : '✕'} IPC socket           ${SOCKET}\n`)
+  if (sockExists) {
+    try {
+      const res = await callTerm('ping')
+      process.stdout.write(
+        `${res.ok ? '✓' : '✕'} Term.app reachable    ${res.ok ? 'pong' : (res as { error: string }).error}\n`,
+      )
+    } catch (err) {
+      process.stdout.write(`✕ Term.app reachable    ${String(err)}\n`)
+    }
+  }
+  process.stdout.write(`✓ hostname              ${hostname()}\n`)
+  process.stdout.write(`✓ COLORTERM             ${process.env.COLORTERM ?? '(unset)'}\n`)
+  process.stdout.write(`✓ TERM                  ${process.env.TERM ?? '(unset)'}\n`)
+}
+
+async function cmdInstallTheme(target: string): Promise<void> {
+  // Bundled theme dir = Term.app/Contents/Resources/themes/<target>/.
+  const here = dirname(new URL(import.meta.url).pathname)
+  const sourceDir = join(here, 'themes', target)
+  if (!existsSync(sourceDir)) {
+    throw new Error(
+      `no bundled themes for '${target}'. Looked in: ${sourceDir}`,
+    )
+  }
+  const installs: Record<string, string> = {
+    claude: join(homedir(), '.claude', 'themes'),
+  }
+  const targetDir = installs[target]
+  if (!targetDir) {
+    throw new Error(
+      `'${target}' isn't a known target. Supported: ${Object.keys(installs).join(', ')}`,
+    )
+  }
+  mkdirSync(targetDir, { recursive: true })
+  const files = readdirSync(sourceDir).filter(f => f.endsWith('.json'))
+  if (files.length === 0) throw new Error(`nothing to install in ${sourceDir}`)
+  for (const file of files) {
+    const src = join(sourceDir, file)
+    const dest = join(targetDir, file)
+    writeFileSync(dest, readFileSync(src, 'utf-8'), 'utf-8')
+    process.stdout.write(`  installed ${file} → ${dest}\n`)
+  }
+  if (target === 'claude') {
+    process.stdout.write(
+      `\nIn Claude Code, run /theme and pick "Term Dark" or "Term Light".\n`,
+    )
+  }
+}
+
+// ────────────────────────────────────────────────────────
+// CLI definition (yargs)
+// ────────────────────────────────────────────────────────
+
+async function main(): Promise<void> {
+  // Don't use yargs' hideBin: it special-cases Electron and
+  // does argv.slice(1) when process.versions.electron is
+  // truthy. That leaves the script path (term.js) in argv
+  // because Term.app runs as ELECTRON_RUN_AS_NODE=1 with
+  // its bundled Electron, which still reports as Electron.
+  // We always invoke as `Electron term.js …`, so the
+  // standard Node-style slice(2) is correct.
+  const argv = process.argv.slice(2)
+
+  // Subtle: `term` with no args opens at $PWD. Yargs
+  // would normally show help; intercept that case first.
+  // Also accept `term <path>` as a shorthand for
+  // `term open <path>` — common muscle memory.
+  if (argv.length === 0) {
+    await cmdOpen(process.cwd())
+    return
+  }
+  if (argv.length === 1 && argv[0]) {
+    const arg = argv[0]
+    const looksLikePath =
+      arg === '.' ||
+      arg.startsWith('./') ||
+      arg.startsWith('../') ||
+      arg.startsWith('/') ||
+      arg.startsWith('~')
+    if (looksLikePath) {
+      const expanded = arg.startsWith('~')
+        ? join(homedir(), arg.slice(1))
+        : arg
+      await cmdOpen(expanded)
+      return
+    }
+  }
+
+  await yargs(argv)
+    .scriptName('term')
+    .version(VERSION)
+    .usage('$0 <cmd> [args]')
+    .strict()
+    .demandCommand(1)
+    .recommendCommands()
+    .help()
+    .wrap(Math.min(100, process.stdout.columns ?? 100))
+    .command(
+      'open [path]',
+      'Open Term.app at the given dir (default $PWD)',
+      y =>
+        y.positional('path', {
+          describe: 'Directory to open',
+          type: 'string',
+        }),
+      async args => {
+        await cmdOpen((args.path as string | undefined) ?? process.cwd())
+      },
+    )
+    .command(
+      'bind',
+      'Scaffold .tool/term/code/ for this project',
+      y => y,
+      () => cmdBind(),
+    )
+    .command(
+      'list',
+      'List running slabs',
+      y => y,
+      async () => {
+        await cmdList()
+      },
+    )
+    .command(
+      'send <slab> <text..>',
+      'Send keystrokes to a slab',
+      y =>
+        y
+          .positional('slab', { type: 'string', demandOption: true })
+          .positional('text', { type: 'string', array: true, demandOption: true }),
+      async args => {
+        const text = (args.text as string[]).join(' ')
+        await cmdSend(args.slab as string, text)
+      },
+    )
+    .command(
+      'focus <slab>',
+      'Activate a slab',
+      y => y.positional('slab', { type: 'string', demandOption: true }),
+      async args => {
+        await cmdFocus(args.slab as string)
+      },
+    )
+    .command(
+      'spawn [name]',
+      'Spawn a new slab',
+      y =>
+        y
+          .positional('name', {
+            describe: 'Slab name; auto-picked if omitted',
+            type: 'string',
+          })
+          .option('cwd', {
+            describe: 'Working directory for the new shell',
+            type: 'string',
+          }),
+      async args => {
+        await cmdSpawn({
+          name: args.name as string | undefined,
+          cwd: args.cwd as string | undefined,
+        })
+      },
+    )
+    .command(
+      'kill <slab>',
+      'Kill a slab and its PTY',
+      y => y.positional('slab', { type: 'string', demandOption: true }),
+      async args => {
+        await cmdKill(args.slab as string)
+      },
+    )
+    .command(
+      'install <kind> <target>',
+      "Install bundled config into another app (eg: 'install theme claude')",
+      y =>
+        y
+          .positional('kind', {
+            type: 'string',
+            choices: ['theme'] as const,
+            demandOption: true,
+          })
+          .positional('target', {
+            type: 'string',
+            demandOption: true,
+          }),
+      async args => {
+        if (args.kind === 'theme') {
+          await cmdInstallTheme(args.target as string)
+        }
+      },
+    )
+    .command(
+      'doctor',
+      'Health check (socket, app status, env)',
+      y => y,
+      async () => {
+        await cmdDoctor()
+      },
+    )
+    .epilogue(
+      'Term.app docs: https://github.com/cluesurf/term\n' +
+        'Companion CLI for the macOS terminal workspace.',
+    )
+    .fail((msg, err) => {
+      const message = err?.message ?? msg ?? 'unknown error'
+      process.stderr.write(`term: ${message}\n`)
+      process.exit(1)
+    })
+    .parseAsync()
+}
+
+void main().catch(err => {
+  process.stderr.write(
+    `term: ${err instanceof Error ? err.message : String(err)}\n`,
+  )
+  process.exit(1)
+})

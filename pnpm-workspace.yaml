@@ -1,5 +1,7 @@
 packages:
-  - base
+  - 'tool/term'
+  - 'tool/term/dock'
+  # Future: tool/base, tool/mesh, tool/view (+ their inner dock workspaces).
 
 # pnpm + electron-builder compatibility.
 # electron-builder cannot follow pnpm's symlinked node_modules

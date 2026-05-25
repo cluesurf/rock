@@ -1,142 +1,17 @@
 {
-  "name": "@cluesurf/rock",
-  "description": "A Hackable Terminal ⊡",
-  "version": "0.1.18",
+  "name": "@cluesurf/tool",
+  "description": "Monorepo for the ClueSurf desktop apps: Term, Base, Mesh, View.",
+  "version": "0.1.0",
+  "private": true,
   "license": "GPL-3.0-or-later",
   "type": "module",
-  "main": "./host/index.js",
-  "types": "./host/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./host/index.d.ts",
-      "default": "./host/index.js"
-    },
-    "./base": {
-      "types": "./host/base/index.d.ts",
-      "default": "./host/base/index.js"
-    },
-    "./base/*": {
-      "types": "./host/base/*.d.ts",
-      "default": "./host/base/*.js"
-    },
-    "./node": {
-      "types": "./host/node/index.d.ts",
-      "default": "./host/node/index.js"
-    },
-    "./node/*": {
-      "types": "./host/node/*.d.ts",
-      "default": "./host/node/*.js"
-    },
-    "./face": {
-      "types": "./host/face/index.d.ts",
-      "default": "./host/face/index.js"
-    },
-    "./face/*": {
-      "types": "./host/face/*.d.ts",
-      "default": "./host/face/*.js"
-    },
-    "./desktop": {
-      "types": "./host/desktop/index.d.ts",
-      "default": "./host/desktop/index.js"
-    },
-    "./desktop/*": {
-      "types": "./host/desktop/*.d.ts",
-      "default": "./host/desktop/*.js"
-    },
-    "./boot": {
-      "types": "./host/boot/index.d.ts",
-      "default": "./host/boot/index.js"
-    },
-    "./boot/preload": {
-      "types": "./host/boot/preload.d.ts",
-      "default": "./host/boot/preload.js"
-    },
-    "./theme/*": {
-      "types": "./host/theme/*.d.ts",
-      "default": "./host/theme/*.js"
-    },
-    "./tailwind/preset.css": "./code/tailwind/preset.css"
-  },
-  "files": ["host", "code/tailwind"],
   "scripts": {
-    "make": "rm -rf host && tsc && tsc-alias --resolve-full-paths",
-    "make:icons": "bash task/icons.sh",
-    "clean": "rm -rf node_modules base/node_modules host base/make base/dist",
-    "clean:lock": "rm -rf node_modules base/node_modules host base/make base/dist pnpm-lock.yaml",
-    "reset": "pnpm clean:lock && pnpm install",
-    "scan": "concurrently --kill-others \"tsc -w\" \"tsc-alias --resolve-full-paths -w\"",
-    "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest",
-    "lint": "eslint --ext .ts,.tsx ./code --fix",
-    "dev": "concurrently --kill-others -n scan,base -c blue,magenta \"pnpm scan\" \"pnpm --filter @cluesurf/rock-base dev\"",
-    "dev:here": "ROCK_CWD=\"${ROCK_CWD:-$INIT_CWD}\" pnpm dev",
-    "build": "pnpm --filter @cluesurf/rock-base build",
-    "start": "pnpm --filter @cluesurf/rock-base start",
-    "demo:install": "pnpm --filter @cluesurf/rock-base install",
-    "package": "pnpm --filter @cluesurf/rock-base package",
-    "package:mac": "pnpm --filter @cluesurf/rock-base package:mac",
-    "package:win": "pnpm --filter @cluesurf/rock-base package:win",
-    "package:linux": "pnpm --filter @cluesurf/rock-base package:linux",
-    "install:theme:claude": "mkdir -p ~/.claude/themes && cp code/theme/claude/*.json ~/.claude/themes/ && echo 'installed Rock Dark + Rock Light into ~/.claude/themes/'",
-    "verify": "bash task/verify.sh",
-    "open": "open base/dist/mac-arm64/Rock.app",
-    "trust:keychain": "bash task/trust-keychain.sh",
-    "ship": "pnpm verify && zsh task/ship.sh",
-    "ship:unsafe": "zsh task/ship.sh",
-    "ship:cask-only": "ROCK_SKIP_BUILD=1 ROCK_SKIP_RELEASE=1 zsh task/ship.sh",
-    "ship:dry": "ROCK_SKIP_BUILD=1 ROCK_SKIP_RELEASE=1 ROCK_SKIP_CASK=1 zsh task/ship.sh",
-    "prepublishOnly": "pnpm make && pnpm test",
-    "publish:npm": "pnpm make && pnpm publish --access public --no-git-checks",
-    "publish:dry": "pnpm make && pnpm publish --access public --dry-run",
-    "release:patch": "pnpm version patch && pnpm publish:npm",
-    "release:minor": "pnpm version minor && pnpm publish:npm",
-    "release:major": "pnpm version major && pnpm publish:npm",
-    "load:test:zone": "cd test/zone && pnpm --dir ../.. dev:here"
-  },
-  "dependencies": {
-    "@dnd-kit/core": "^6.3.0",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@dnd-kit/utilities": "^3.2.0",
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/addon-search": "^0.16.0",
-    "@xterm/addon-web-links": "^0.12.0",
-    "@xterm/xterm": "^6.0.0",
-    "fuse.js": "^7.3.0",
-    "zustand": "^5.0.13"
-  },
-  "peerDependencies": {
-    "better-sqlite3": "^12.0.0",
-    "electron": ">=42.0.0",
-    "esbuild": "^0.28.0",
-    "node-pty": "^1.1.0",
-    "react": ">=19.2.0",
-    "react-dom": ">=19.2.0"
-  },
-  "peerDependenciesMeta": {
-    "better-sqlite3": {
-      "optional": true
-    },
-    "electron": {
-      "optional": true
-    },
-    "esbuild": {
-      "optional": true
-    },
-    "node-pty": {
-      "optional": true
-    }
-  },
-  "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^25.0.0",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "concurrently": "^9.2.0",
-    "tsc-alias": "^1.8.17",
-    "typescript": "^6.0.0",
-    "vitest": "^4.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3", "esbuild", "node-pty"]
+    "term:make":    "pnpm --filter @cluesurf/term make",
+    "term:dev":     "pnpm --filter @cluesurf/term-dock dev",
+    "term:build":   "pnpm --filter @cluesurf/term-dock build",
+    "term:package": "pnpm --filter @cluesurf/term-dock package:mac",
+    "term:open":    "pnpm --filter @cluesurf/term-dock open",
+    "term:ship":    "pnpm --filter @cluesurf/term ship",
+    "term:icons":   "pnpm --filter @cluesurf/term run make:icons"
   }
 }

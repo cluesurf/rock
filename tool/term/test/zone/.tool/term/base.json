@@ -1,0 +1,473 @@
+{
+  "version": 1,
+  "windows": [
+    {
+      "tabs": [
+        {
+          "name": "term",
+          "cwd": "/Users/lancepollard/base/crew/cluesurf/deck/term/test/zone"
+        }
+      ],
+      "activeIndex": 0,
+      "tree": [
+        {
+          "kind": "group",
+          "label": "app",
+          "collapsed": false,
+          "children": [
+            {
+              "kind": "group",
+              "label": "web",
+              "collapsed": false,
+              "children": [
+                { "kind": "leaf", "slabName": "web-dev",       "label": "dev" },
+                { "kind": "leaf", "slabName": "web-build",     "label": "build" },
+                { "kind": "leaf", "slabName": "web-test",      "label": "test" },
+                { "kind": "leaf", "slabName": "web-storybook", "label": "storybook" },
+                { "kind": "leaf", "slabName": "web-e2e",       "label": "e2e" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "api",
+              "collapsed": false,
+              "children": [
+                { "kind": "leaf", "slabName": "api-dev",   "label": "dev" },
+                { "kind": "leaf", "slabName": "api-test",  "label": "test" },
+                { "kind": "leaf", "slabName": "api-types", "label": "types" },
+                { "kind": "leaf", "slabName": "api-lint",  "label": "lint" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "worker",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "worker-queue", "label": "queue" },
+                { "kind": "leaf", "slabName": "worker-cron",  "label": "cron" },
+                { "kind": "leaf", "slabName": "worker-dlq",   "label": "dlq" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "mobile",
+              "collapsed": true,
+              "children": [
+                {
+                  "kind": "group",
+                  "label": "ios",
+                  "collapsed": true,
+                  "children": [
+                    { "kind": "leaf", "slabName": "ios-build",     "label": "build" },
+                    { "kind": "leaf", "slabName": "ios-simulator", "label": "simulator" }
+                  ]
+                },
+                {
+                  "kind": "group",
+                  "label": "android",
+                  "collapsed": true,
+                  "children": [
+                    { "kind": "leaf", "slabName": "android-build",    "label": "build" },
+                    { "kind": "leaf", "slabName": "android-emulator", "label": "emulator" }
+                  ]
+                },
+                { "kind": "leaf", "slabName": "metro", "label": "metro" }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "label": "data",
+          "collapsed": false,
+          "children": [
+            {
+              "kind": "group",
+              "label": "db",
+              "collapsed": false,
+              "children": [
+                {
+                  "kind": "group",
+                  "label": "postgres",
+                  "collapsed": false,
+                  "children": [
+                    { "kind": "leaf", "slabName": "pg-local",   "label": "local" },
+                    { "kind": "leaf", "slabName": "pg-staging", "label": "staging" },
+                    { "kind": "leaf", "slabName": "pg-prod",    "label": "prod" }
+                  ]
+                },
+                {
+                  "kind": "group",
+                  "label": "redis",
+                  "collapsed": true,
+                  "children": [
+                    { "kind": "leaf", "slabName": "redis-local", "label": "local" },
+                    { "kind": "leaf", "slabName": "redis-prod",  "label": "prod" }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "migrations",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "migrations-pending", "label": "pending" },
+                { "kind": "leaf", "slabName": "migrations-history", "label": "history" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "pipeline",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "etl-ingest",    "label": "ingest" },
+                { "kind": "leaf", "slabName": "etl-transform", "label": "transform" },
+                { "kind": "leaf", "slabName": "warehouse",     "label": "warehouse" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "notebook",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "jupyter",      "label": "jupyter" },
+                { "kind": "leaf", "slabName": "notebook-analysis", "label": "analysis" }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "label": "infra",
+          "collapsed": false,
+          "children": [
+            {
+              "kind": "group",
+              "label": "kubernetes",
+              "collapsed": false,
+              "children": [
+                {
+                  "kind": "group",
+                  "label": "clusters",
+                  "collapsed": false,
+                  "children": [
+                    { "kind": "leaf", "slabName": "kube-dev",     "label": "dev" },
+                    { "kind": "leaf", "slabName": "kube-staging", "label": "staging" },
+                    { "kind": "leaf", "slabName": "kube-prod",    "label": "prod" }
+                  ]
+                },
+                { "kind": "leaf", "slabName": "k9s", "label": "k9s" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "docker",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "compose-up",   "label": "compose-up" },
+                { "kind": "leaf", "slabName": "compose-logs", "label": "compose-logs" },
+                { "kind": "leaf", "slabName": "docker-ps",    "label": "ps" },
+                { "kind": "leaf", "slabName": "docker-prune", "label": "prune" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "aws",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "aws-cli", "label": "cli" },
+                { "kind": "leaf", "slabName": "aws-s3",  "label": "s3" },
+                { "kind": "leaf", "slabName": "aws-ec2", "label": "ec2" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "terraform",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "tf-plan",  "label": "plan" },
+                { "kind": "leaf", "slabName": "tf-apply", "label": "apply" },
+                { "kind": "leaf", "slabName": "tf-state", "label": "state" }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "label": "deploy",
+          "collapsed": false,
+          "children": [
+            {
+              "kind": "group",
+              "label": "ci",
+              "collapsed": false,
+              "children": [
+                { "kind": "leaf", "slabName": "ci-watch", "label": "watch" },
+                { "kind": "leaf", "slabName": "ci-retry", "label": "retry-failed" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "staging",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "staging-deploy",   "label": "deploy" },
+                { "kind": "leaf", "slabName": "staging-rollback", "label": "rollback" },
+                { "kind": "leaf", "slabName": "staging-logs",     "label": "logs" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "prod",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "prod-deploy",   "label": "deploy" },
+                { "kind": "leaf", "slabName": "prod-rollback", "label": "rollback" },
+                { "kind": "leaf", "slabName": "prod-logs",     "label": "logs" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "previews",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "preview-pr-1421", "label": "pr-1421" },
+                { "kind": "leaf", "slabName": "preview-pr-1432", "label": "pr-1432" }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "label": "observability",
+          "collapsed": false,
+          "children": [
+            {
+              "kind": "group",
+              "label": "logs",
+              "collapsed": false,
+              "children": [
+                {
+                  "kind": "group",
+                  "label": "prod",
+                  "collapsed": false,
+                  "children": [
+                    { "kind": "leaf", "slabName": "log-prod-web",    "label": "web" },
+                    { "kind": "leaf", "slabName": "log-prod-api",    "label": "api" },
+                    { "kind": "leaf", "slabName": "log-prod-worker", "label": "worker" },
+                    { "kind": "leaf", "slabName": "log-prod-nginx",  "label": "nginx" }
+                  ]
+                },
+                {
+                  "kind": "group",
+                  "label": "staging",
+                  "collapsed": true,
+                  "children": [
+                    { "kind": "leaf", "slabName": "log-staging-web", "label": "web" },
+                    { "kind": "leaf", "slabName": "log-staging-api", "label": "api" }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "metrics",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "grafana", "label": "grafana" },
+                { "kind": "leaf", "slabName": "prom",    "label": "prometheus" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "traces",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "jaeger",     "label": "jaeger" },
+                { "kind": "leaf", "slabName": "honeycomb",  "label": "honeycomb" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "alerts",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "pagerduty", "label": "pagerduty" },
+                { "kind": "leaf", "slabName": "oncall",    "label": "oncall" }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "label": "claude",
+          "collapsed": false,
+          "children": [
+            {
+              "kind": "group",
+              "label": "code",
+              "collapsed": false,
+              "children": [
+                { "kind": "leaf", "slabName": "claude-review",      "label": "review" },
+                { "kind": "leaf", "slabName": "claude-ultrareview", "label": "ultrareview" },
+                { "kind": "leaf", "slabName": "claude-rewrite",     "label": "rewrite" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "watch",
+              "collapsed": false,
+              "children": [
+                { "kind": "leaf", "slabName": "babysit-prs",  "label": "babysit-prs" },
+                { "kind": "leaf", "slabName": "monitor-ci",   "label": "monitor-ci" },
+                { "kind": "leaf", "slabName": "monitor-logs", "label": "monitor-logs" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "tasks",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "claude-running", "label": "running" },
+                { "kind": "leaf", "slabName": "claude-queue",   "label": "queue" },
+                { "kind": "leaf", "slabName": "claude-done",    "label": "done" }
+              ]
+            },
+            { "kind": "leaf", "slabName": "claude-chat", "label": "chat" }
+          ]
+        },
+        {
+          "kind": "group",
+          "label": "services",
+          "collapsed": false,
+          "children": [
+            {
+              "kind": "group",
+              "label": "billing",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "stripe-cli",    "label": "stripe" },
+                { "kind": "leaf", "slabName": "stripe-events", "label": "events" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "comms",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "twilio-cli",      "label": "twilio" },
+                { "kind": "leaf", "slabName": "sendgrid-events", "label": "sendgrid" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "auth",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "clerk-cli",   "label": "clerk" },
+                { "kind": "leaf", "slabName": "auth0-cli",   "label": "auth0" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "storage",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "r2",  "label": "r2" },
+                { "kind": "leaf", "slabName": "gcs", "label": "gcs" },
+                { "kind": "leaf", "slabName": "s3",  "label": "s3" }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "label": "git",
+          "collapsed": false,
+          "children": [
+            { "kind": "leaf", "slabName": "git-main", "label": "main" },
+            {
+              "kind": "group",
+              "label": "branches",
+              "collapsed": false,
+              "children": [
+                { "kind": "leaf", "slabName": "branch-feat-search",      "label": "feat-search" },
+                { "kind": "leaf", "slabName": "branch-feat-onboarding",  "label": "feat-onboarding" },
+                { "kind": "leaf", "slabName": "branch-hotfix-payments",  "label": "hotfix-payments" }
+              ]
+            },
+            {
+              "kind": "group",
+              "label": "submodules",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "submod-vendor-a", "label": "vendor-a" },
+                { "kind": "leaf", "slabName": "submod-vendor-b", "label": "vendor-b" }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "label": "security",
+          "collapsed": true,
+          "children": [
+            { "kind": "leaf", "slabName": "vault-cli",   "label": "vault" },
+            { "kind": "leaf", "slabName": "doppler-cli", "label": "doppler" },
+            { "kind": "leaf", "slabName": "age",         "label": "age" },
+            { "kind": "leaf", "slabName": "sops",        "label": "sops" },
+            {
+              "kind": "group",
+              "label": "audits",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "npm-audit",    "label": "npm-audit" },
+                { "kind": "leaf", "slabName": "snyk",         "label": "snyk" },
+                { "kind": "leaf", "slabName": "dependabot",   "label": "dependabot" }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "label": "notes",
+          "collapsed": false,
+          "children": [
+            { "kind": "leaf", "slabName": "daily",  "label": "daily" },
+            { "kind": "leaf", "slabName": "inbox",  "label": "inbox" },
+            { "kind": "leaf", "slabName": "tasks",  "label": "tasks" },
+            {
+              "kind": "group",
+              "label": "meetings",
+              "collapsed": true,
+              "children": [
+                { "kind": "leaf", "slabName": "standup", "label": "standup" },
+                { "kind": "leaf", "slabName": "1-1s",    "label": "1-1s" },
+                { "kind": "leaf", "slabName": "retro",   "label": "retro" }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "label": "scratch",
+          "collapsed": true,
+          "children": [
+            { "kind": "leaf", "slabName": "shell-1", "label": "shell-1" },
+            { "kind": "leaf", "slabName": "shell-2", "label": "shell-2" },
+            { "kind": "leaf", "slabName": "shell-3", "label": "shell-3" },
+            { "kind": "leaf", "slabName": "node-repl",   "label": "node-repl" },
+            { "kind": "leaf", "slabName": "python-repl", "label": "python-repl" }
+          ]
+        }
+      ],
+      "position": {
+        "x": 80,
+        "y": 60,
+        "width": 1480,
+        "height": 920
+      }
+    }
+  ]
+}
