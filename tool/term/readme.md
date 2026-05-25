@@ -4,10 +4,10 @@
 <br/>
 <br/>
 <br/>
-
+<!--
 <p align='center'>
   <img src='https://github.com/cluesurf/term/blob/make/view/term.png?raw=true' height='256'/>
-</p>
+</p> -->
 
 <h3 align='center'>@cluesurf/term</h3>
 <p align='center'>
@@ -197,8 +197,8 @@ custom components.
 ## Using the Standalone Library
 
 Term.app already bundles `@cluesurf/term` and resolves it for you at
-runtime when it JIT-compiles `.tool/term/code/index.tsx`. **You do not need
-to install it for your workspace to work.**
+runtime when it JIT-compiles `.tool/term/code/index.tsx`. **You do not
+need to install it for your workspace to work.**
 
 You'd only pull it from npm in two cases:
 
@@ -318,15 +318,15 @@ useTerminalStore, useTerminalApi, useSlabActivity, useKeys
 ## Claude Code the Terminal
 
 The `.tool/term/` folder is just files. `base.json` is plain JSON.
-`.tool/term/code/index.tsx` is plain TypeScript. Both invite scripts and AI
-agents to compose your terminal for you.
+`.tool/term/code/index.tsx` is plain TypeScript. Both invite scripts and
+AI agents to compose your terminal for you.
 
 A few ways to wire it up:
 
 **Have Claude scaffold a workspace from a fresh repo.** Point Claude at
-`package.json` and ask for a `.tool/term/code/index.tsx` with the right slabs
-(web dev server, API dev server, log tailer, REPL). It picks sensible
-defaults based on what scripts and folders exist.
+`package.json` and ask for a `.tool/term/code/index.tsx` with the right
+slabs (web dev server, API dev server, log tailer, REPL). It picks
+sensible defaults based on what scripts and folders exist.
 
 **Auto-rewrite `base.json` per folder.** Drop a script in a git hook or
 CI that regenerates tabs based on whatever directories exist:
