@@ -27,7 +27,7 @@ Monorepo for the four ClueSurf desktop apps:
 | **▣** | Term | terminal                        | `tool/term/` | `@cluesurf/term` | active |
 | **▥** | Base | databases / APIs                | `tool/base/` | `@cluesurf/base` | stub   |
 | **▦** | Mesh | infrastructure                  | `tool/mesh/` | `@cluesurf/mesh` | stub   |
-| **⊞** | View | logs / requests / observability | `tool/view/` | `@cluesurf/view` | stub   |
+| **▤** | View | logs / requests / observability | `tool/view/` | `@cluesurf/view` | stub   |
 
 All four share a common platform (Electron + React + xterm.js +
 Tailwind). Per-app source lives at `tool/<name>/code/`; per-app Electron

@@ -1,7 +1,7 @@
 
 <svg width="2048" height="2048" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" role="img">
-<title>Violet rounded-square icon (3D extruded)</title>
-<desc>App icon with recessed zinc well and a single protruding violet rounded-square with soft glow.</desc>
+<title>Amber horizontal bars icon</title>
+<desc>App icon with recessed zinc well containing 4 glowing amber horizontal bars.</desc>
 
 <defs>
 <radialGradient id="well" cx="50%" cy="42%" r="70%">
@@ -44,12 +44,13 @@
 </feMerge>
 </filter>
 
-<filter id="violetGlow" x="-100%" y="-100%" width="300%" height="300%">
-<feGaussianBlur stdDeviation="22"/>
+<filter id="amberGlow" x="-100%" y="-100%" width="300%" height="300%">
+<feGaussianBlur stdDeviation="12"/>
 </filter>
 
 <filter id="discDropShadow" x="-50%" y="-50%" width="200%" height="200%">
-<feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-color="#000000" flood-opacity="0.5"/>
+<feDropShadow dx="0" dy="4" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.75"/>
+<feDropShadow dx="0" dy="1" stdDeviation="0.6" flood-color="#000000" flood-opacity="0.55"/>
 </filter>
 </defs>
 
@@ -59,10 +60,19 @@
 <rect x="21" y="21" width="198" height="198" rx="39" fill="url(#well)" filter="url(#innerShadow)"/>
 <rect x="21" y="21" width="198" height="198" rx="39" fill="url(#wellRim)" opacity="0.6"/>
 
-<!-- Soft violet glow halo -->
-<rect x="75" y="75" width="90" height="90" rx="24" fill="#8b5cf6" opacity="0.32" filter="url(#violetGlow)"/>
+<!-- Amber halos -->
+<rect x="45" y="51" width="150" height="27" rx="9" fill="#fbbf24" opacity="0.32" filter="url(#amberGlow)"/>
+<rect x="45" y="88" width="150" height="27" rx="9" fill="#fbbf24" opacity="0.32" filter="url(#amberGlow)"/>
+<rect x="45" y="125" width="150" height="27" rx="9" fill="#fbbf24" opacity="0.32" filter="url(#amberGlow)"/>
+<rect x="45" y="162" width="150" height="27" rx="9" fill="#fbbf24" opacity="0.32" filter="url(#amberGlow)"/>
 
-<!-- Protruding violet disc: layered shadow + bevel -->
-<rect x="84" y="84" width="72" height="72" rx="18" fill="#8b5cf6" filter="url(#discDropShadow)"/>
-<rect x="84" y="84" width="72" height="72" rx="18" fill="url(#discBevel)"/>
+<!-- Amber bars: solid fill + top bevel -->
+<rect x="49" y="55" width="142" height="19" rx="5" fill="#fbbf24" filter="url(#discDropShadow)"/>
+<rect x="49" y="55" width="142" height="19" rx="5" fill="url(#discBevel)"/>
+<rect x="49" y="92" width="142" height="19" rx="5" fill="#fbbf24" filter="url(#discDropShadow)"/>
+<rect x="49" y="92" width="142" height="19" rx="5" fill="url(#discBevel)"/>
+<rect x="49" y="129" width="142" height="19" rx="5" fill="#fbbf24" filter="url(#discDropShadow)"/>
+<rect x="49" y="129" width="142" height="19" rx="5" fill="url(#discBevel)"/>
+<rect x="49" y="166" width="142" height="19" rx="5" fill="#fbbf24" filter="url(#discDropShadow)"/>
+<rect x="49" y="166" width="142" height="19" rx="5" fill="url(#discBevel)"/>
 </svg>
