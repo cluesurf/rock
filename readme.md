@@ -6,7 +6,7 @@
 <br/>
 
 <p align='center'>
-  <img src='https://github.com/cluesurf.png?size=256' height='256'/>
+  <img src='https://github.com/cluesurf/tool/blob/make/view/tool.png?raw=true' height='256'/>
 </p>
 
 <h3 align='center'>@cluesurf/tool</h3>
