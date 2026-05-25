@@ -61,9 +61,9 @@
 <rect x="21" y="21" width="198" height="198" rx="39" fill="url(#wellRim)" opacity="0.6"/>
 
 <!-- Soft violet glow halo -->
-<rect x="41" y="41" width="158" height="158" rx="32" fill="#8b5cf6" opacity="0.32" filter="url(#violetGlow)"/>
+<rect x="64.5" y="64.5" width="111" height="111" rx="22" fill="#8b5cf6" opacity="0.32" filter="url(#violetGlow)"/>
 
 <!-- Protruding violet disc: layered shadow + bevel -->
-<rect x="50" y="50" width="140" height="140" rx="26" fill="#8b5cf6" filter="url(#discDropShadow)"/>
-<rect x="50" y="50" width="140" height="140" rx="26" fill="url(#discBevel)"/>
+<rect x="73.5" y="73.5" width="93" height="93" rx="17" fill="#8b5cf6" filter="url(#discDropShadow)"/>
+<rect x="73.5" y="73.5" width="93" height="93" rx="17" fill="url(#discBevel)"/>
 </svg>
