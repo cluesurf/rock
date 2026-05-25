@@ -872,13 +872,23 @@ function LeafRow(props: NodeRowProps & { node: LeafNode }) {
       // Tab from a focused leaf → jump to the terminal so
       // the user can start typing. xterm's input is a
       // hidden <textarea class="xterm-helper-textarea">
-      // inside the ready Dock.
+      // inside the ready Dock. Every slab renders its own
+      // Dock — including the hidden ones (display:none) —
+      // so we must skip the helper textareas whose
+      // ancestors are not visible. offsetParent is null on
+      // any element nested under a display:none ancestor,
+      // which is the cheapest reliable visibility check.
       event.preventDefault()
       event.stopPropagation()
-      const xtermTextarea = document.querySelector(
+      const candidates = document.querySelectorAll<HTMLTextAreaElement>(
         '[data-rock-dock][data-ready="true"] .xterm-helper-textarea',
-      ) as HTMLTextAreaElement | null
-      xtermTextarea?.focus()
+      )
+      for (const candidate of candidates) {
+        if (candidate.offsetParent !== null) {
+          candidate.focus()
+          break
+        }
+      }
     } else if (
       (event.metaKey || event.ctrlKey) &&
       event.key.toLowerCase() === 't'

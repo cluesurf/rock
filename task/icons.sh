@@ -97,8 +97,12 @@ render_size() {
 
     # Oversample factor for the deep pipeline. Larger =
     # cleaner gradient (more subpixels averaged per output
-    # pixel) but exponentially slower. 4× is the sweet spot.
-    local oversample=4
+    # pixel). 8× takes ~2× as long as 4× but each pixel in
+    # the final image is averaged from 64 source subpixels,
+    # which kills the last bit of edge fuzz on heavily-
+    # filtered SVGs. Worth it for app icons that get a long
+    # life on the user's dock + Applications folder.
+    local oversample=8
 
     case "$RASTERIZER" in
       inkscape)

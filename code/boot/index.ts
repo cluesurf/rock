@@ -819,19 +819,48 @@ export async function boot(input: BootInput): Promise<AppHandle> {
     const id = createId('slab')
     compiled.slabIdByName[name] = id
     const tabId = compiled.workspace.tabs[0]!.id
+    // Pick the cwd: explicit opt → project default → as a
+    // last resort process.cwd(). Inside Rock.app, process.cwd()
+    // is the bundle path, so the defaultCwd fallback is what
+    // actually keeps new shells inside the user's project.
+    const slabCwd = opts.cwd ?? input.defaultCwd ?? process.cwd()
     await manager.createSlab({
       id,
       workspaceId: compiled.workspace.id,
       tabId,
       name,
-      cwd: opts.cwd ?? input.defaultCwd,
+      cwd: slabCwd,
       program: opts.program,
       command: opts.command,
       cols: 80,
       rows: 24,
     })
-    // Record initial cwd for the new slab so it persists.
-    liveCwds.set(id, opts.cwd ?? process.cwd())
+    // Push the new slab into compiled.slabs so persistNow's
+    // `compiled.slabs.map(...)` includes it. Without this,
+    // runtime-spawned slabs (created when the user clicks a
+    // tree leaf that hasn't been spawned yet, or via Cmd+T)
+    // never appear in base.local.json and their cwd is lost
+    // on next launch.
+    const now = Date.now()
+    compiled.slabs.push({
+      id,
+      workspaceId: compiled.workspace.id,
+      tabId,
+      name,
+      cwd: slabCwd,
+      program: opts.program ?? '',
+      args: [],
+      command: opts.command,
+      env: {},
+      cols: 80,
+      rows: 24,
+      status: 'idle',
+      createdAt: now,
+      updatedAt: now,
+    })
+    // Record initial cwd for the new slab so it persists
+    // until a shell-emitted OSC 7 updates it.
+    liveCwds.set(id, slabCwd)
     // Broadcast updated slab-map to every open window so
     // every sidebar updates.
     for (const w of wins) {

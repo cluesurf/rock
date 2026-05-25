@@ -1,0 +1,127 @@
+
+<svg width="2048" height="2048" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>Sky 16-grid icon (3D extruded)</title>
+<desc>App icon with a recessed zinc well containing a 4x4 grid of sky-colored rounded squares that protrude with depth matching the well's recession.</desc>
+
+<defs>
+<radialGradient id="well" cx="50%" cy="42%" r="70%">
+<stop offset="0%" stop-color="#27272a"/>
+<stop offset="65%" stop-color="#18181b"/>
+<stop offset="100%" stop-color="#09090b"/>
+</radialGradient>
+
+<linearGradient id="wellRim" x1="0%" y1="0%" x2="0%" y2="100%">
+<stop offset="0%" stop-color="#000000" stop-opacity="0.85"/>
+<stop offset="50%" stop-color="#000000" stop-opacity="0"/>
+<stop offset="100%" stop-color="#3f3f46" stop-opacity="0.55"/>
+</linearGradient>
+
+<!-- Outer bezel gradient: subtly lighter than the well at both top and bottom, but never bright/gray -->
+<linearGradient id="bezelBody" x1="0%" y1="0%" x2="0%" y2="100%">
+<stop offset="0%" stop-color="#26262a"/>
+<stop offset="50%" stop-color="#1f1f23"/>
+<stop offset="100%" stop-color="#212125"/>
+</linearGradient>
+
+<linearGradient id="topHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+<stop offset="0%" stop-color="#52525b" stop-opacity="0.25"/>
+<stop offset="40%" stop-color="#52525b" stop-opacity="0"/>
+</linearGradient>
+
+<linearGradient id="discBevel" x1="0%" y1="0%" x2="0%" y2="100%">
+<stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+<stop offset="15%" stop-color="#ffffff" stop-opacity="0"/>
+<stop offset="85%" stop-color="#000000" stop-opacity="0"/>
+<stop offset="100%" stop-color="#000000" stop-opacity="0.12"/>
+</linearGradient>
+
+<filter id="innerShadow" x="-20%" y="-20%" width="140%" height="140%">
+<feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+<feOffset dx="0" dy="3" result="offsetblur"/>
+<feFlood flood-color="#000000" flood-opacity="0.95"/>
+<feComposite in2="offsetblur" operator="in"/>
+<feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="shadowDiff"/>
+<feMerge>
+<feMergeNode in="SourceGraphic"/>
+<feMergeNode in="shadowDiff"/>
+</feMerge>
+</filter>
+
+<filter id="skyGlow" x="-100%" y="-100%" width="300%" height="300%">
+<feGaussianBlur stdDeviation="6"/>
+</filter>
+
+<filter id="discDropShadow" x="-100%" y="-100%" width="300%" height="300%">
+<feGaussianBlur in="SourceAlpha" stdDeviation="3.5" result="ambBlur"/>
+<feOffset in="ambBlur" dx="0" dy="4" result="ambOffset"/>
+<feFlood flood-color="#000000" flood-opacity="0.55" result="ambColor"/>
+<feComposite in="ambColor" in2="ambOffset" operator="in" result="ambient"/>
+<feGaussianBlur in="SourceAlpha" stdDeviation="1" result="contactBlur"/>
+<feOffset in="contactBlur" dx="0" dy="1.5" result="contactOffset"/>
+<feFlood flood-color="#000000" flood-opacity="0.85" result="contactColor"/>
+<feComposite in="contactColor" in2="contactOffset" operator="in" result="contact"/>
+<feMerge>
+<feMergeNode in="ambient"/>
+<feMergeNode in="contact"/>
+<feMergeNode in="SourceGraphic"/>
+</feMerge>
+</filter>
+</defs>
+
+<rect x="0" y="0" width="240" height="240" rx="54" fill="url(#bezelBody)"/>
+<rect x="0" y="0" width="240" height="240" rx="54" fill="url(#topHighlight)"/>
+<rect x="21" y="21" width="198" height="198" rx="39" fill="url(#well)" filter="url(#innerShadow)"/>
+<rect x="21" y="21" width="198" height="198" rx="39" fill="url(#wellRim)" opacity="0.6"/>
+
+<!-- Sky halos -->
+<rect x="50.010" y="50.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="90.010" y="50.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="130.010" y="50.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="170.010" y="50.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="50.010" y="90.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="90.010" y="90.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="130.010" y="90.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="170.010" y="90.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="50.010" y="130.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="90.010" y="130.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="130.010" y="130.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="170.010" y="130.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="50.010" y="170.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="90.010" y="170.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="130.010" y="170.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="170.010" y="170.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+
+<!-- Extruded discs: solid fill with layered shadow + thin top/bottom bevel -->
+<g filter="url(#discDropShadow)"><rect x="52.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="52.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="92.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="92.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="132.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="132.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="172.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="172.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="52.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="52.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="92.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="92.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="132.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="132.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="172.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="172.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="52.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="52.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="92.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="92.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="132.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="132.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="172.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="172.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="52.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="52.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="92.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="92.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="132.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="132.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+<g filter="url(#discDropShadow)"><rect x="172.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
+<rect x="172.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
+</svg>
