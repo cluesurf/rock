@@ -22,12 +22,12 @@
 
 Monorepo for the four ClueSurf desktop apps:
 
-| icon  | app  | domain                          | folder       | package          | status |
-| ----- | ---- | ------------------------------- | ------------ | ---------------- | ------ |
-| **▣** | Term | terminal                        | `tool/term/` | `@cluesurf/term` | active |
-| **▥** | Base | databases / APIs                | `tool/base/` | `@cluesurf/base` | stub   |
-| **▦** | Mesh | infrastructure                  | `tool/mesh/` | `@cluesurf/mesh` | stub   |
-| **▤** | View | logs / requests / observability | `tool/view/` | `@cluesurf/view` | stub   |
+| icon | glyph  | app  | domain                          | folder       | package          | status |
+| ----- | ----- | ---- | ------------------------------- | ------------ | ---------------- | ------ |
+| <img src='https://github.com/cluesurf/tool/blob/make/tool/term/view/term.svg?raw=true' height='64'/> | **▣** | Term | terminal                        | `tool/term/` | `@cluesurf/term` | active |
+| <img src='https://github.com/cluesurf/tool/blob/make/tool/base/view/base.svg?raw=true' height='64'/> | **▥** | Base | databases / APIs                | `tool/base/` | `@cluesurf/base` | stub   |
+| <img src='https://github.com/cluesurf/tool/blob/make/tool/mesh/view/mesh.svg?raw=true' height='64'/> | **▦** | Mesh | infrastructure                  | `tool/mesh/` | `@cluesurf/mesh` | stub   |
+| <img src='https://github.com/cluesurf/tool/blob/make/tool/view/view/view.svg?raw=true' height='64'/> | **▤** | View | logs / requests / observability | `tool/view/` | `@cluesurf/view` | stub   |
 
 All four share a common platform (Electron + React + xterm.js +
 Tailwind). Per-app source lives at `tool/<name>/code/`; per-app Electron
