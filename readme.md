@@ -34,12 +34,8 @@ Tailwind). Per-app source lives at `tool/<name>/code/`; per-app Electron
 shell at `tool/<name>/dock/`. Shared platform packages will eventually
 live at the repo-root `code/` folder (Phase 2).
 
-This repo was previously `cluesurf/rock` — the Term app's old code now
-lives at `tool/term/`. See
-[`../note/library/tool/migration-plan.md`](../../note/library/tool/migration-plan.md)
-for the migration trail and
-[`../note/library/workbench-architecture.md`](../../note/library/workbench-architecture.md)
-for the long-term architecture.
+(Just playing around with these right now, seeing how hackable and
+useful coulud make them :)).
 
 ## Develop Term
 

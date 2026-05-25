@@ -132,7 +132,7 @@ function Splash({ text }: { text: string }) {
   return (
     <div
       className="flex h-full w-full items-center justify-center"
-      style={{ background: term.background, color: term.brightBlack }}
+      style={{ background: termDark.background, color: termDark.brightBlack }}
     >
       {text}
     </div>
