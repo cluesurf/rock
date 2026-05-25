@@ -60,7 +60,6 @@
   "files": ["host", "code/tailwind"],
   "scripts": {
     "make": "rm -rf host && tsc && tsc-alias --resolve-full-paths",
-    "make:icons": "bash task/icons.sh",
     "clean": "rm -rf node_modules dock/node_modules host dock/make dock/dist",
     "clean:lock": "rm -rf node_modules dock/node_modules host dock/make dock/dist pnpm-lock.yaml",
     "reset": "pnpm clean:lock && pnpm install",

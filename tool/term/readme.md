@@ -11,7 +11,7 @@
 
 <h3 align='center'>@cluesurf/term</h3>
 <p align='center'>
-  A Hackable Terminal ⊡
+  A Hackable Terminal ▣
 </p>
 
 <br/>
