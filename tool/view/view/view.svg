@@ -61,18 +61,18 @@
 <rect x="21" y="21" width="198" height="198" rx="39" fill="url(#wellRim)" opacity="0.6"/>
 
 <!-- Amber halos -->
-<rect x="45" y="51" width="150" height="27" rx="9" fill="#fbbf24" opacity="0.32" filter="url(#amberGlow)"/>
-<rect x="45" y="88" width="150" height="27" rx="9" fill="#fbbf24" opacity="0.32" filter="url(#amberGlow)"/>
-<rect x="45" y="125" width="150" height="27" rx="9" fill="#fbbf24" opacity="0.32" filter="url(#amberGlow)"/>
-<rect x="45" y="162" width="150" height="27" rx="9" fill="#fbbf24" opacity="0.32" filter="url(#amberGlow)"/>
+<rect x="45" y="51" width="150" height="27" rx="9" fill="#bdbdc3" opacity="0.32" filter="url(#amberGlow)"/>
+<rect x="45" y="88" width="150" height="27" rx="9" fill="#bdbdc3" opacity="0.32" filter="url(#amberGlow)"/>
+<rect x="45" y="125" width="150" height="27" rx="9" fill="#bdbdc3" opacity="0.32" filter="url(#amberGlow)"/>
+<rect x="45" y="162" width="150" height="27" rx="9" fill="#bdbdc3" opacity="0.32" filter="url(#amberGlow)"/>
 
 <!-- Amber bars: solid fill + top bevel -->
-<rect x="49" y="55" width="142" height="19" rx="5" fill="#fbbf24" filter="url(#discDropShadow)"/>
+<rect x="49" y="55" width="142" height="19" rx="5" fill="#bdbdc3" filter="url(#discDropShadow)"/>
 <rect x="49" y="55" width="142" height="19" rx="5" fill="url(#discBevel)"/>
-<rect x="49" y="92" width="142" height="19" rx="5" fill="#fbbf24" filter="url(#discDropShadow)"/>
+<rect x="49" y="92" width="142" height="19" rx="5" fill="#bdbdc3" filter="url(#discDropShadow)"/>
 <rect x="49" y="92" width="142" height="19" rx="5" fill="url(#discBevel)"/>
-<rect x="49" y="129" width="142" height="19" rx="5" fill="#fbbf24" filter="url(#discDropShadow)"/>
+<rect x="49" y="129" width="142" height="19" rx="5" fill="#bdbdc3" filter="url(#discDropShadow)"/>
 <rect x="49" y="129" width="142" height="19" rx="5" fill="url(#discBevel)"/>
-<rect x="49" y="166" width="142" height="19" rx="5" fill="#fbbf24" filter="url(#discDropShadow)"/>
+<rect x="49" y="166" width="142" height="19" rx="5" fill="#bdbdc3" filter="url(#discDropShadow)"/>
 <rect x="49" y="166" width="142" height="19" rx="5" fill="url(#discBevel)"/>
 </svg>
