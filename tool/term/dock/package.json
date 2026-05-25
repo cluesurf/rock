@@ -13,7 +13,7 @@
     "prestart": "pnpm setup-env && pnpm build:lib",
     "setup-env": "pnpm fix-bins && pnpm fix-spawn-helper && pnpm fix-electron && pnpm fix-native",
     "fix-bins": "find ../node_modules -path '*/bin/*' \\( -name '*.js' -o -name '*.cjs' -o -name '*.mjs' \\) -exec chmod +x {} + 2>/dev/null; true",
-    "fix-electron": "test -d ../node_modules/electron/dist || node ../node_modules/electron/install.js",
+    "fix-electron": "for d in ../node_modules/electron ../../../node_modules/electron; do if [ -d \"$d\" ] && [ ! -d \"$d/dist\" ]; then echo \"installing electron at $d\" && (cd \"$d\" && node install.js); fi; done; true",
     "fix-native": "test -f ../node_modules/node-pty/build/Release/pty.node || bash -c 'export SDKROOT=\"$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk 2>/dev/null | tail -1)\"; pnpm dlx @electron/rebuild --only node-pty'",
     "dev": "electron-vite dev",
     "build": "electron-vite build && pnpm build:cli",
