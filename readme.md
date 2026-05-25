@@ -35,7 +35,7 @@ shell at `tool/<name>/dock/`. Shared platform packages will eventually
 live at the repo-root `code/` folder (Phase 2).
 
 (Just playing around with these right now, seeing how hackable and
-useful coulud make them :)).
+useful coulud make them 😁).
 
 ## Develop Term
 
