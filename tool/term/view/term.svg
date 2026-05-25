@@ -49,7 +49,8 @@
 </filter>
 
 <filter id="discDropShadow" x="-50%" y="-50%" width="200%" height="200%">
-<feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-color="#000000" flood-opacity="0.5"/>
+<feDropShadow dx="0" dy="4" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.75"/>
+<feDropShadow dx="0" dy="1.5" stdDeviation="0.8" flood-color="#000000" flood-opacity="0.55"/>
 </filter>
 </defs>
 
@@ -60,9 +61,9 @@
 <rect x="21" y="21" width="198" height="198" rx="39" fill="url(#wellRim)" opacity="0.6"/>
 
 <!-- Soft violet glow halo -->
-<rect x="75" y="75" width="90" height="90" rx="24" fill="#8b5cf6" opacity="0.32" filter="url(#violetGlow)"/>
+<rect x="41" y="41" width="158" height="158" rx="32" fill="#8b5cf6" opacity="0.32" filter="url(#violetGlow)"/>
 
 <!-- Protruding violet disc: layered shadow + bevel -->
-<rect x="84" y="84" width="72" height="72" rx="18" fill="#8b5cf6" filter="url(#discDropShadow)"/>
-<rect x="84" y="84" width="72" height="72" rx="18" fill="url(#discBevel)"/>
+<rect x="50" y="50" width="140" height="140" rx="26" fill="#8b5cf6" filter="url(#discDropShadow)"/>
+<rect x="50" y="50" width="140" height="140" rx="26" fill="url(#discBevel)"/>
 </svg>
