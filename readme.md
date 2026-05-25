@@ -24,10 +24,10 @@ Monorepo for the four ClueSurf desktop apps:
 
 | icon | glyph  | app  | domain                          | folder       | package          | status |
 | ----- | :-----: | ---- | ------------------------------- | ------------ | ---------------- | ------ |
-| <img src='https://github.com/cluesurf/tool/blob/make/tool/term/view/term.svg?raw=true&view' height='32'/> | **▣** | Term | terminal                        | `tool/term/` | `@cluesurf/term` | active |
-| <img src='https://github.com/cluesurf/tool/blob/make/tool/base/view/base.svg?raw=true&view' height='32'/> | **▥** | Base | databases / APIs                | `tool/base/` | `@cluesurf/base` | stub   |
-| <img src='https://github.com/cluesurf/tool/blob/make/tool/mesh/view/mesh.svg?raw=true&view' height='32'/> | **▦** | Mesh | infrastructure                  | `tool/mesh/` | `@cluesurf/mesh` | stub   |
-| <img src='https://github.com/cluesurf/tool/blob/make/tool/view/view/view.svg?raw=true&view' height='32'/> | **▤** | View | logs / requests / observability | `tool/view/` | `@cluesurf/view` | stub   |
+| <img src='https://github.com/cluesurf/tool/blob/make/tool/term/view/term.svg?raw=true&view' height='32'/> | **▣** | `term` | terminal                        | `tool/term/` | `@cluesurf/term` | active |
+| <img src='https://github.com/cluesurf/tool/blob/make/tool/base/view/base.svg?raw=true&view' height='32'/> | **▥** | `base` | databases / APIs                | `tool/base/` | `@cluesurf/base` | stub   |
+| <img src='https://github.com/cluesurf/tool/blob/make/tool/mesh/view/mesh.svg?raw=true&view' height='32'/> | **▦** | `mesh` | infrastructure                  | `tool/mesh/` | `@cluesurf/mesh` | stub   |
+| <img src='https://github.com/cluesurf/tool/blob/make/tool/view/view/view.svg?raw=true&view' height='32'/> | **▤** | `view` | logs / requests / observability | `tool/view/` | `@cluesurf/view` | stub   |
 
 All four share a common platform (Electron + React + xterm.js +
 Tailwind). Per-app source lives at `tool/<name>/code/`; per-app Electron

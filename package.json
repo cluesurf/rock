@@ -10,7 +10,7 @@
     "term:dev":      "pnpm --filter @cluesurf/term-dock dev",
     "term:build":    "pnpm --filter @cluesurf/term-dock build",
     "term:package":  "pnpm --filter @cluesurf/term-dock package:mac",
-    "term:open":     "pnpm --filter @cluesurf/term-dock open",
+    "term:open":     "pnpm --filter @cluesurf/term-dock dev",
     "term:ship":     "pnpm --filter @cluesurf/term ship",
     "make:icons:term": "bash task/icons.sh term",
     "make:icons:base": "bash task/icons.sh base",
