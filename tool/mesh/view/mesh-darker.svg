@@ -74,54 +74,54 @@
 <rect x="21" y="21" width="198" height="198" rx="39" fill="url(#wellRim)" opacity="0.6"/>
 
 <!-- Sky halos -->
-<rect x="50.010" y="50.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="90.010" y="50.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="130.010" y="50.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="170.010" y="50.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="50.010" y="90.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="90.010" y="90.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="130.010" y="90.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="170.010" y="90.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="50.010" y="130.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="90.010" y="130.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="130.010" y="130.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="170.010" y="130.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="50.010" y="170.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="90.010" y="170.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="130.010" y="170.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
-<rect x="170.010" y="170.010" width="19.980" height="19.980" rx="5.328" fill="#38bdf8" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="50.010" y="50.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="90.010" y="50.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="130.010" y="50.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="170.010" y="50.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="50.010" y="90.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="90.010" y="90.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="130.010" y="90.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="170.010" y="90.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="50.010" y="130.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="90.010" y="130.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="130.010" y="130.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="170.010" y="130.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="50.010" y="170.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="90.010" y="170.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="130.010" y="170.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
+<rect x="170.010" y="170.010" width="19.980" height="19.980" rx="5.328" fill="#0ea5e9" opacity="0.32" filter="url(#skyGlow)"/>
 
 <!-- Extruded discs: solid fill with layered shadow + thin top/bottom bevel -->
-<g filter="url(#discDropShadow)"><rect x="52.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="52.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="52.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="92.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="92.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="92.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="132.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="132.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="132.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="172.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="172.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="172.008" y="52.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="52.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="52.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="52.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="92.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="92.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="92.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="132.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="132.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="132.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="172.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="172.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="172.008" y="92.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="52.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="52.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="52.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="92.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="92.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="92.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="132.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="132.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="132.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="172.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="172.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="172.008" y="132.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="52.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="52.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="52.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="92.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="92.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="92.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="132.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="132.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="132.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
-<g filter="url(#discDropShadow)"><rect x="172.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="#38bdf8"/></g>
+<g filter="url(#discDropShadow)"><rect x="172.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="#0ea5e9"/></g>
 <rect x="172.008" y="172.008" width="15.984" height="15.984" rx="3.996" fill="url(#discBevel)"/>
 </svg>
