@@ -23,7 +23,7 @@
 Monorepo for the four ClueSurf desktop apps:
 
 | icon | glyph  | app  | domain                          | folder       | package          | status |
-| ----- | ----- | ---- | ------------------------------- | ------------ | ---------------- | ------ |
+| ----- | :-----: | ---- | ------------------------------- | ------------ | ---------------- | ------ |
 | <img src='https://github.com/cluesurf/tool/blob/make/tool/term/view/term.svg?raw=true' height='32'/> | **▣** | Term | terminal                        | `tool/term/` | `@cluesurf/term` | active |
 | <img src='https://github.com/cluesurf/tool/blob/make/tool/base/view/base.svg?raw=true' height='32'/> | **▥** | Base | databases / APIs                | `tool/base/` | `@cluesurf/base` | stub   |
 | <img src='https://github.com/cluesurf/tool/blob/make/tool/mesh/view/mesh.svg?raw=true' height='32'/> | **▦** | Mesh | infrastructure                  | `tool/mesh/` | `@cluesurf/mesh` | stub   |
