@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "beat",
+    "slug": "tool-beat",
+    "owner": "cluesurf",
+    "scheme": "beat",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "surf.clue.beat"
+    },
+    "android": {
+      "package": "surf.clue.beat",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow beat to record your musical ideas."
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "66bf2bc5-6381-4ccc-a4af-d4fe720fa3c1"
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+# beat is a self-contained pnpm project, intentionally
+# isolated from the parent deck/tool workspace.
+#
+# That workspace hosts the Electron app `term`, which pins
+# React 19.2.x, while React Native 0.81 (this app) pins
+# React 19.1.0. Sharing one hoisted node_modules produced
+# two React copies (zustand resolved 19.2.x while the RN
+# renderer used 19.1.0) and broke hooks. Giving beat its
+# own workspace root keeps a single React.
+packages: []
+
+allowBuilds:
+  dtrace-provider: true
+
+# RN + Metro want a flat node_modules, not pnpm's default
+# symlinked layout.
+nodeLinker: hoisted
+
+# Belt-and-suspenders: force one React everywhere so a
+# transitive peer (e.g. zustand) can never pull a second
+# copy into a nested node_modules.
+overrides:
+  react: 19.1.0
+  react-dom: 19.1.0

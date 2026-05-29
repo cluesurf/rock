@@ -1,13 +1,19 @@
 packages:
   - 'tool/term'
   - 'tool/term/dock'
+  # tool/beat is intentionally NOT a member. It is an Expo /
+  # React Native app pinned to React 19.1.0, while term is an
+  # Electron app on React 19.2.x. Sharing one hoisted
+  # node_modules produced two React copies and broke hooks, so
+  # beat is a self-contained pnpm project with its own root
+  # workspace file and node_modules.
   # Future: tool/base, tool/mesh, tool/view (+ their inner dock workspaces).
 
-# pnpm + electron-builder compatibility.
-# electron-builder cannot follow pnpm's symlinked node_modules
-# layout when copying framework bundles inside Electron.app.
-# Hoisted mode mirrors npm's flat node_modules and is the
-# documented workaround.
+  # pnpm + electron-builder compatibility.
+  # electron-builder cannot follow pnpm's symlinked node_modules
+  # layout when copying framework bundles inside Electron.app.
+  # Hoisted mode mirrors npm's flat node_modules and is the
+  # documented workaround.
 nodeLinker: hoisted
 
 allowBuilds:
@@ -15,4 +21,5 @@ allowBuilds:
   electron: true
   electron-winstaller: false
   esbuild: true
+  msgpackr-extract: true
   node-pty: true
