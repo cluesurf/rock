@@ -5,10 +5,11 @@
  * routes stay thin and logic lives in code/.
  */
 
-import { StyleSheet, Text } from 'react-native'
+import { Alert, StyleSheet, Text } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useBeatStore } from '@/face/store'
 import { useImportSong } from '@/face/hook/use-import-song'
+import type { Song } from '@/base/types'
 import { THEME, FONT_MONO } from '@/face/theme'
 import Screen from '@/face/component/screen'
 import TapButton from '@/face/component/tap-button'
@@ -17,8 +18,20 @@ export default function ProjectsScreen() {
   const router = useRouter()
   // Select the stable map, derive the list in render.
   const songs = useBeatStore(state => state.songs)
+  const removeSong = useBeatStore(state => state.removeSong)
   const list = Object.values(songs)
   const importSong = useImportSong()
+
+  const confirmDelete = (song: Song) => {
+    Alert.alert('Delete song', `Delete "${song.name}" and all its takes?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => removeSong(song.id),
+      },
+    ])
+  }
 
   /** Pick an audio file (and optional sections), then open it. */
   const onImport = async () => {
@@ -41,9 +54,13 @@ export default function ProjectsScreen() {
             label={song.name}
             detail={`${song.sectionIds.length} sections`}
             onPress={() => router.push(`/project/${song.id}`)}
+            onLongPress={() => confirmDelete(song)}
           />
         ))
       )}
+      {list.length > 0 ? (
+        <Text style={styles.hint}>Long-press a song to delete it.</Text>
+      ) : null}
       <TapButton
         label="+ Import from laptop"
         variant="primary"
@@ -60,6 +77,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: THEME.textMuted,
     paddingVertical: 12,
+  },
+  hint: {
+    fontFamily: FONT_MONO,
+    fontSize: 12,
+    color: THEME.textMuted,
+    textAlign: 'center',
+    marginTop: 8,
   },
 })
 

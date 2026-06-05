@@ -7,10 +7,15 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
     "newArchEnabled": true,
+    "platforms": ["ios", "android"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "surf.clue.beat"
+      "bundleIdentifier": "surf.clue.beat",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "surf.clue.beat",
@@ -19,16 +24,20 @@
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
-    "web": {
-      "bundler": "metro",
-      "output": "static"
-    },
     "plugins": [
       "expo-router",
       [
         "expo-audio",
         {
           "microphonePermission": "Allow beat to record your musical ideas."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 200,
+          "backgroundColor": "#ffffff"
         }
       ]
     ],
@@ -37,6 +46,12 @@
       "eas": {
         "projectId": "66bf2bc5-6381-4ccc-a4af-d4fe720fa3c1"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/66bf2bc5-6381-4ccc-a4af-d4fe720fa3c1"
     }
   }
 }

@@ -48,7 +48,7 @@ export default function RecordScreen() {
     selectedIds,
   })
 
-  const { isRecording, durationMs, start, stop } = useRecorder()
+  const { isRecording, durationMs, level, start, stop } = useRecorder()
   const [lastTakeNumber, setLastTakeNumber] = useState<number | null>(null)
 
   // Refs let the loop's onWrap callback read fresh state without
@@ -157,6 +157,14 @@ export default function RecordScreen() {
       </Pressable>
 
       {isRecording ? (
+        <View style={styles.meter}>
+          <View
+            style={[styles.meterFill, { width: `${Math.round(level * 100)}%` }]}
+          />
+        </View>
+      ) : null}
+
+      {isRecording ? (
         <TapButton label="↺ New take" onPress={onNewTake} />
       ) : null}
 
@@ -205,6 +213,17 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginTop: 8,
     opacity: 0.85,
+  },
+  meter: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: THEME.border,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  meterFill: {
+    height: 8,
+    backgroundColor: THEME.up,
   },
   saved: {
     alignItems: 'center',

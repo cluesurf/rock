@@ -18,6 +18,7 @@ import type { Section, Song, Take } from '@/base/types'
 import type { SongDefinition } from '@/base/define'
 import { buildSong } from '@/base/import'
 import {
+  deleteAudioFile,
   loadPersistedState,
   savePersistedState,
 } from '@/node/storage'
@@ -70,6 +71,10 @@ export type BeatState = {
   }): Take
   /** Set the rating on an existing take. */
   rateTake(input: { takeId: string; rating: Rating }): void
+  /** Delete a take and its audio file. */
+  removeTake(takeId: string): void
+  /** Delete a song and all its sections, takes, and audio. */
+  removeSong(songId: string): void
 }
 
 /**
@@ -182,6 +187,54 @@ export const useBeatStore = create<BeatState>((set, get) => ({
       return {
         takes: { ...state.takes, [takeId]: { ...take, rating } },
       }
+    })
+    persist(get())
+  },
+
+  removeTake(takeId) {
+    const take = get().takes[takeId]
+    if (take?.recordingUri) {
+      deleteAudioFile(take.recordingUri)
+    }
+    set(state => {
+      const takes = { ...state.takes }
+      delete takes[takeId]
+      return { takes }
+    })
+    persist(get())
+  },
+
+  removeSong(songId) {
+    const state = get()
+    const song = state.songs[songId]
+    if (!song) {
+      return
+    }
+    // Remove the base audio and every take's recording on disk.
+    if (song.audioUri) {
+      deleteAudioFile(song.audioUri)
+    }
+    Object.values(state.takes).forEach(take => {
+      if (take.songId === songId && take.recordingUri) {
+        deleteAudioFile(take.recordingUri)
+      }
+    })
+    set(current => {
+      const songs = { ...current.songs }
+      delete songs[songId]
+      const sections = { ...current.sections }
+      Object.keys(sections).forEach(id => {
+        if (sections[id]?.songId === songId) {
+          delete sections[id]
+        }
+      })
+      const takes = { ...current.takes }
+      Object.keys(takes).forEach(id => {
+        if (takes[id]?.songId === songId) {
+          delete takes[id]
+        }
+      })
+      return { songs, sections, takes }
     })
     persist(get())
   },

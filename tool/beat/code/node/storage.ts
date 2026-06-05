@@ -141,6 +141,25 @@ export function importAudioFile({
 }
 
 /**
+ * Delete an audio file from storage. Best-effort: a missing
+ * file or a failure is ignored, since the metadata removal is
+ * what matters to the user.
+ */
+
+export function deleteAudioFile(uri: string): void {
+  try {
+    const file = new File(uri)
+    if (file.exists) {
+      file.delete()
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      console.warn('beat: failed to delete audio', error.message)
+    }
+  }
+}
+
+/**
  * Download an audio file from a URL (the laptop import server)
  * into durable storage and return its uri. Used by the
  * "Import from laptop" flow.

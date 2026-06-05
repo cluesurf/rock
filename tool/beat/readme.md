@@ -24,21 +24,26 @@ sync yet. Those land in later phases. See the full plan in
 
 ## What works right now
 
-- Projects screen lists songs and imports new ones with **+ Import
-  song** (pick an audio file, then an optional sections JSON).
-- Project screen shows a song's sections as big tap targets.
-- Recorder screen plays the base track from the section start (**▶ Play
-  section**) and records real audio from the mic (expo-audio) with the
-  Record then Retake loop and a live timer. Each take saves its file uri
-  and duration.
-- Review screen groups takes by section, plays a take back on tap, shows
-  its length, and rates it with thumbs-up, thumbs-down, and star.
+- Projects lists songs, imports new ones (**+ Import from laptop** over
+  Wi-Fi, or **+ Import from Files**), and deletes a song on long-press.
+- Project screen: tap sections to select one or more, **Loop** them
+  (drag across the loop bar to set base-track volume), or **Record** over
+  the selection.
+- Recorder loops the selected parts and records real mic audio
+  (expo-audio) with a live timer and input-level meter. Each loop wrap
+  banks a take and starts a fresh one; **↺ New take** does it on demand.
+- Review groups takes by section, filters to All / Liked / Starred,
+  plays a take (with stop), **Compare**s a section's takes back-to-back,
+  shares a take off the phone (expo-sharing), rates it, or deletes it.
 - Songs, sections, and takes **persist** to a JSON document on device
-  (expo-file-system) and survive an app reload. Imported audio is copied
-  into durable storage.
+  and survive a reload. Imported audio is copied into durable storage.
 
-The two seeded sample songs have no audio (they are just demos). Import a
-real song to get base-track playback.
+Import a real song to get base-track playback and looping. There is no
+sample data.
+
+Not yet built: cloud sync (R2), and auto-deletion of blank passes
+(deferred — the car track bleeds into the mic, so a simple level check
+can't tell singing from background).
 
 ## Bootstrapping a song from Logic Pro
 

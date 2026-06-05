@@ -21,6 +21,8 @@ export type TapButtonProps = {
   /** When true, dims and ignores presses. */
   disabled?: boolean
   onPress: () => void
+  /** Optional long-press, e.g. to delete. */
+  onLongPress?: () => void
 }
 
 export default function TapButton({
@@ -30,12 +32,14 @@ export default function TapButton({
   selected = false,
   disabled = false,
   onPress,
+  onLongPress,
 }: TapButtonProps) {
   const isPrimary = variant === 'primary'
 
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       disabled={disabled}
       style={({ pressed }) => [
         styles.button,

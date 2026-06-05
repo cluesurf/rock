@@ -32,12 +32,16 @@ export default function RootLayout() {
   }, [hydrate])
 
   // Configure the audio session up front so base-track playback
-  // is audible even with the hardware silent switch on, before
-  // any recording happens. Without this, the loop showed as
-  // playing but produced no sound until recording configured the
-  // session.
+  // is audible even with the hardware silent switch on, and
+  // routes to the loud bottom speaker rather than the quiet
+  // earpiece. Without this, the loop played silently until
+  // recording configured the session, and then came out the
+  // earpiece at low volume.
   useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {})
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldRouteThroughEarpiece: false,
+    }).catch(() => {})
   }, [])
 
   return (

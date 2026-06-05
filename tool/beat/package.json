@@ -12,13 +12,14 @@
     "build:dev": "eas build --profile development --platform ios",
     "build:preview": "eas build --profile preview --platform ios",
     "build:prod": "eas build --profile production --platform ios",
-    "update": "eas update",
+    "ota": "eas update --branch preview",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "fix": "expo install --fix",
     "doctor": "expo-doctor",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -30,7 +31,10 @@
     "expo-file-system": "~19.0.23",
     "expo-linking": "~8.0.12",
     "expo-router": "~6.0.24",
+    "expo-sharing": "~14.0.8",
+    "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
+    "expo-updates": "~29.0.18",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
@@ -41,6 +45,7 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "eas-cli": "^20.0.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.7"
   }
 }
